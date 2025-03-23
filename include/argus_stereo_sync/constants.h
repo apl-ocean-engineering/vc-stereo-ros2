@@ -6,7 +6,6 @@
 
 #include <Argus/Types.h>
 
-static const uint32_t FRAMERATE = 10;
 static const Argus::Size2D<uint32_t> STREAM_SIZE(1440, 1080);
 static const Argus::Range<float> GAIN_RANGE(1, 44);
 static const Argus::Range<float> ISP_DIGITAL_GAIN_RANGE(1, 1);

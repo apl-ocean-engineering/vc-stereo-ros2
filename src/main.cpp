@@ -7,6 +7,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "image_transport/camera_publisher.hpp"
 // clang-format on
 
 #include <Argus/Argus.h>
@@ -17,8 +18,10 @@
 
 #include "EGLGlobal.h"
 #include "Error.h"
+#include "argus_stereo_sync/camera_publisher.h"
 #include "argus_stereo_sync/constants.h"
 #include "argus_stereo_sync/stereo_consumer.h"
+#include "argus_stereo_sync/stereo_parameters.hpp"
 
 uint8_t *oBuffer = new uint8_t[3 * STREAM_SIZE.width() * STREAM_SIZE.height()];
 
@@ -41,20 +44,13 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
+enum class TriggerType { Internal, External };
+
 class ArgusStereoSyncNode : public rclcpp::Node {
  public:
   ArgusStereoSyncNode(const std::string &node_name,
                       const rclcpp::NodeOptions &options)
-      : Node(node_name, options), camera_provider_(CameraProvider::create()) {
-    left_image_pub =
-        create_publisher<sensor_msgs::msg::Image>("left/image_raw", 1);
-    left_camera_info_pub =
-        create_publisher<sensor_msgs::msg::CameraInfo>("left/camera_info", 1);
-    right_image_pub =
-        create_publisher<sensor_msgs::msg::Image>("right/image_raw", 1);
-    right_camera_info_pub =
-        create_publisher<sensor_msgs::msg::CameraInfo>("right/camera_info", 1);
-  }
+      : Node(node_name, options), camera_provider_(CameraProvider::create()) {}
 
   virtual ~ArgusStereoSyncNode() {
     RCLCPP_INFO(get_logger(), "Starting destructor");
@@ -79,7 +75,27 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Done -- exiting.");
   }
 
-  bool execute() {
+  bool execute(
+      std::shared_ptr<image_transport::ImageTransport> image_transport,
+      std::shared_ptr<argus_stereo_sync::ParamListener> param_listener) {
+    auto params = param_listener->get_params();
+
+    int framerate = params.framerate;
+
+    TriggerType trigger_type;
+    if (params.trigger_type == "external") {
+      RCLCPP_INFO(get_logger(), "Configuring cameras for _external trigger");
+      trigger_type = TriggerType::External;
+    } else {
+      RCLCPP_INFO(get_logger(), "Configuring cameras for _internal_ trigger");
+      trigger_type = TriggerType::Internal;
+    }
+
+    left_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
+        image_transport, "left");
+    right_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
+        image_transport, "right");
+
     PROPAGATE_ERROR(g_display.initialize());
 
     ICameraProvider *iCameraProvider =
@@ -153,7 +169,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     if (!iSourceSettings) {
       ORIGINATE_ERROR("Failed to get source settings request interface");
     }
-    iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / FRAMERATE));
+    iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
     iSourceSettings->setExposureTimeRange(EXPOSURE_TIME_RANGE);
     iSourceSettings->setGainRange(GAIN_RANGE);
 
@@ -164,7 +180,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
 
     RCLCPP_INFO(get_logger(), "Stereo consumer");
     stereo_consumer_ = std::make_shared<StereoConsumer>(
-        iStreamLeft, iStreamRight, left_image_pub, right_image_pub);
+        iStreamLeft, iStreamRight, left_camera_pub_, right_camera_pub_);
 
     PROPAGATE_ERROR(stereo_consumer_->initialize());
     PROPAGATE_ERROR(stereo_consumer_->waitRunning());
@@ -190,12 +206,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
   IEGLOutputStream *iStreamRight, *iStreamLeft;
   ICaptureSession *iCaptureSession;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr left_image_pub;
-  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr
-      left_camera_info_pub;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr right_image_pub;
-  rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr
-      right_camera_info_pub;
+  std::shared_ptr<argus_stereo_sync::CameraPublisher> left_camera_pub_,
+      right_camera_pub_;
 };
 
 }  // namespace argus_stereo_sync
@@ -204,7 +216,14 @@ int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<argus_stereo_sync::ArgusStereoSyncNode>(
       "argus_stereo_sync", rclcpp::NodeOptions());
-  if (!node->execute()) {
+
+  auto image_transport =
+      std::make_shared<image_transport::ImageTransport>(node);
+
+  auto param_listener =
+      std::make_shared<argus_stereo_sync::ParamListener>(node);
+
+  if (!node->execute(image_transport, param_listener)) {
     return -1;
   }
 

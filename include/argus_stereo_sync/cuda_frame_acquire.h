@@ -10,6 +10,8 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include <cudaEGL.h>
+
+#include "argus_stereo_sync/camera_publisher.h"
 // clang-format on
 
 namespace argus_stereo_sync {
@@ -18,7 +20,8 @@ class CudaFrameAcquire {
  public:
   CudaFrameAcquire(
       CUeglStreamConnection& connection,
-      const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& publisher);
+      const std::shared_ptr<argus_stereo_sync::CameraPublisher>& pub);
+
   ~CudaFrameAcquire();
 
   bool publish();
@@ -29,7 +32,7 @@ class CudaFrameAcquire {
   CUeglFrame m_frame;
   CUstream m_stream;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_;
+  std::shared_ptr<argus_stereo_sync::CameraPublisher> pub_;
 };
 
 }  // namespace argus_stereo_sync

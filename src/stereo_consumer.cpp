@@ -3,8 +3,11 @@
 // Copyright 2025 University of Washington
 
 // clang-format off
+// Must come first, do not let this be sorted with the other headers
 #include "argus_stereo_sync/stereo_consumer.h"
 // clang-format on
+
+#include <memory>
 
 #include "CUDAHelper.h"
 #include "EGLGlobal.h"
@@ -20,8 +23,8 @@ using ArgusSamples::getCudaErrorString;
 
 StereoConsumer::StereoConsumer(
     Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
-    const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &left_pub,
-    const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &right_pub)
+    const std::shared_ptr<argus_stereo_sync::CameraPublisher> &left_pub,
+    const std::shared_ptr<argus_stereo_sync::CameraPublisher> &right_pub)
     : m_leftStream(leftStream),
       m_rightStream(rightStream),
       m_cuStreamLeft(nullptr),

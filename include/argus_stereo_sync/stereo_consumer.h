@@ -8,11 +8,14 @@
 // rclcpp must be included before anything that might include X11.h
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "argus_stereo_sync/camera_publisher.h"
 // clang-format on
 
 #include <Argus/Argus.h>
 #include <EGLStream/EGLStream.h>
 #include <cudaEGL.h>
+
+#include <memory>
 
 #include "Thread.h"
 
@@ -22,8 +25,8 @@ class StereoConsumer : public ArgusSamples::Thread {
  public:
   explicit StereoConsumer(
       Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
-      const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &left_pub,
-      const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr &right_pub);
+      const std::shared_ptr<argus_stereo_sync::CameraPublisher> &left_pub,
+      const std::shared_ptr<argus_stereo_sync::CameraPublisher> &right_pub);
 
   ~StereoConsumer();
 
@@ -38,8 +41,8 @@ class StereoConsumer : public ArgusSamples::Thread {
   CUeglStreamConnection m_cuStreamRight;
   CUcontext m_cudaContext;
 
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr left_pub_;
-  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr right_pub_;
+  std::shared_ptr<argus_stereo_sync::CameraPublisher> left_pub_;
+  std::shared_ptr<argus_stereo_sync::CameraPublisher> right_pub_;
 };
 
 }  // namespace argus_stereo_sync

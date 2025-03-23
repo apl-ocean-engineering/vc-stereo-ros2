@@ -17,7 +17,7 @@ namespace argus_stereo_sync {
 
 CudaFrameAcquire::CudaFrameAcquire(
     CUeglStreamConnection& connection,
-    const rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr& pub)
+    const std::shared_ptr<argus_stereo_sync::CameraPublisher>& pub)
     : m_connection(connection), m_stream(NULL), m_resource(0), pub_(pub) {
   CUresult cuResult = cuEGLStreamConsumerAcquireFrame(
       &m_connection, &m_resource, &m_stream, -1);

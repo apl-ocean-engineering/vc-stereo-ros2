@@ -1,0 +1,14 @@
+argus_stereo_sync:
+  framerate:
+    type: int
+    default_value: 10
+    description: "Frame rate (frames/sec)"
+    validation:
+      bounds<>: [1, 60]
+
+  trigger_type:
+    type: string
+    default_value: external
+    description: "Camera trigger:  internal or external"
+    validation:
+      one_of<>: [["internal", "external",]]

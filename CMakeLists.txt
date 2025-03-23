@@ -70,6 +70,11 @@ target_include_directories(utils_lib
 #
 #
 
+generate_parameter_library(
+  stereo_parameters # cmake target name for the parameter library
+  src/parameters.yaml # path to input yaml file
+)
+
 cuda_add_executable(stereo_node
     src/convert.cu
     src/main.cpp
@@ -90,6 +95,7 @@ target_link_libraries(stereo_node
   ${ARGUS_LIBRARIES}
   cuda
   utils_lib
+  stereo_parameters
 )
 
 # == Install ==
