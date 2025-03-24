@@ -24,7 +24,8 @@ namespace argus_stereo_sync {
 class StereoConsumer : public ArgusSamples::Thread {
  public:
   explicit StereoConsumer(
-      Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
+      rclcpp::Logger logger, Argus::IEGLOutputStream *leftStream,
+      Argus::IEGLOutputStream *rightStream,
       const std::shared_ptr<argus_stereo_sync::CameraPublisher> &left_pub,
       const std::shared_ptr<argus_stereo_sync::CameraPublisher> &right_pub);
 
@@ -35,6 +36,7 @@ class StereoConsumer : public ArgusSamples::Thread {
   virtual bool threadExecute();
   virtual bool threadShutdown();
 
+  rclcpp::Logger logger_;
   Argus::IEGLOutputStream *m_leftStream;
   Argus::IEGLOutputStream *m_rightStream;
   CUeglStreamConnection m_cuStreamLeft;

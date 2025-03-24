@@ -22,10 +22,12 @@ namespace argus_stereo_sync {
 using ArgusSamples::getCudaErrorString;
 
 StereoConsumer::StereoConsumer(
-    Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
+    rclcpp::Logger logger, Argus::IEGLOutputStream *leftStream,
+    Argus::IEGLOutputStream *rightStream,
     const std::shared_ptr<argus_stereo_sync::CameraPublisher> &left_pub,
     const std::shared_ptr<argus_stereo_sync::CameraPublisher> &right_pub)
-    : m_leftStream(leftStream),
+    : logger_(logger),
+      m_leftStream(leftStream),
       m_rightStream(rightStream),
       m_cuStreamLeft(nullptr),
       m_cuStreamRight(nullptr),
@@ -38,7 +40,7 @@ StereoConsumer::~StereoConsumer() {}
 bool StereoConsumer::threadInitialize() {
   PROPAGATE_ERROR(ArgusSamples::initCUDA(&m_cudaContext));
 
-  CONSUMER_PRINT("Connecting CUDA consumer to left stream\n");
+  RCLCPP_INFO(logger_, "Connecting CUDA consumer to left stream");
   CUresult cuResult =
       cuEGLStreamConsumerConnect(&m_cuStreamLeft, m_leftStream->getEGLStream());
   if (cuResult != CUDA_SUCCESS) {
@@ -46,7 +48,7 @@ bool StereoConsumer::threadInitialize() {
                     getCudaErrorString(cuResult));
   }
 
-  CONSUMER_PRINT("Connecting CUDA consumer to right stream\n");
+  RCLCPP_INFO(logger_, "Connecting CUDA consumer to right stream");
   cuResult = cuEGLStreamConsumerConnect(&m_cuStreamRight,
                                         m_rightStream->getEGLStream());
   if (cuResult != CUDA_SUCCESS) {
@@ -57,13 +59,14 @@ bool StereoConsumer::threadInitialize() {
 }
 
 bool StereoConsumer::threadExecute() {
-  CONSUMER_PRINT("Waiting for Argus producer to connect to left stream.\n");
+  RCLCPP_INFO(logger_, "Waiting for Argus producer to connect to left stream.");
   m_leftStream->waitUntilConnected();
 
-  CONSUMER_PRINT("Waiting for Argus producer to connect to right stream.\n");
+  RCLCPP_INFO(logger_,
+              "Waiting for Argus producer to connect to right stream.");
   m_rightStream->waitUntilConnected();
 
-  CONSUMER_PRINT("Streams connected, processing frames.\n");
+  RCLCPP_INFO(logger_, "Streams connected, processing frames.");
   while (true) {
     EGLint streamState = EGL_STREAM_STATE_CONNECTING_KHR;
 
@@ -71,7 +74,7 @@ bool StereoConsumer::threadExecute() {
                                          m_leftStream->getEGLStream(),
                                          EGL_STREAM_STATE_KHR, &streamState) ||
         (streamState == EGL_STREAM_STATE_DISCONNECTED_KHR)) {
-      CONSUMER_PRINT("left : EGL_STREAM_STATE_DISCONNECTED_KHR received\n");
+      RCLCPP_WARN(logger_, "left : EGL_STREAM_STATE_DISCONNECTED_KHR received");
       break;
     }
 
@@ -79,7 +82,8 @@ bool StereoConsumer::threadExecute() {
                                          m_rightStream->getEGLStream(),
                                          EGL_STREAM_STATE_KHR, &streamState) ||
         (streamState == EGL_STREAM_STATE_DISCONNECTED_KHR)) {
-      CONSUMER_PRINT("right : EGL_STREAM_STATE_DISCONNECTED_KHR received\n");
+      RCLCPP_WARN(logger_,
+                  "right : EGL_STREAM_STATE_DISCONNECTED_KHR received");
       break;
     }
 
@@ -89,7 +93,7 @@ bool StereoConsumer::threadExecute() {
     PROPAGATE_ERROR(left_acq.publish() && right_acq.publish());
   }
 
-  CONSUMER_PRINT("No more frames. Cleaning up.\n");
+  RCLCPP_INFO(logger_, "No more frames. Cleaning up.");
   PROPAGATE_ERROR(requestShutdown());
   return true;
 }
@@ -108,7 +112,7 @@ bool StereoConsumer::threadShutdown() {
   }
 
   PROPAGATE_ERROR(ArgusSamples::cleanupCUDA(&m_cudaContext));
-  CONSUMER_PRINT("Done.\n");
+  RCLCPP_DEBUG(logger_, "Done.");
   return true;
 }
 

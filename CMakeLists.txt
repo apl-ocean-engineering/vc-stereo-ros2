@@ -77,10 +77,11 @@ generate_parameter_library(
 
 cuda_add_executable(stereo_node
     src/convert.cu
+    src/cuda_frame_acquire.cpp
+    src/gpio_trigger_thread.cpp
     src/main.cpp
     src/stereo_consumer.cpp
     src/v4l_device.cpp
-    src/cuda_frame_acquire.cpp
 )
 
 target_include_directories(stereo_node

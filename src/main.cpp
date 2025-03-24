@@ -5,9 +5,6 @@
 // clang-format off
 // rclcpp must be included before anything that might include X11.h
 #include "rclcpp/rclcpp.hpp"
-#include "sensor_msgs/msg/camera_info.hpp"
-#include "sensor_msgs/msg/image.hpp"
-#include "image_transport/camera_publisher.hpp"
 // clang-format on
 
 #include <Argus/Argus.h>
@@ -24,6 +21,10 @@
 #include "argus_stereo_sync/stereo_consumer.h"
 #include "argus_stereo_sync/stereo_parameters.hpp"
 #include "argus_stereo_sync/v4l_device.h"
+#include "camera_info_manager/camera_info_manager.hpp"
+#include "image_transport/camera_publisher.hpp"
+#include "sensor_msgs/msg/camera_info.hpp"
+#include "sensor_msgs/msg/image.hpp"
 
 uint8_t *oBuffer = new uint8_t[3 * STREAM_SIZE.width() * STREAM_SIZE.height()];
 
@@ -51,6 +52,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
   ArgusStereoSyncNode(const std::string &node_name,
                       const rclcpp::NodeOptions &options)
       : Node(node_name, options),
+        left_info_manager_(this, "left"),
+        right_info_manager_(this, "right"),
         camera_provider_(CameraProvider::create()),
         video0_("/dev/video0"),
         video1_("/dev/video1") {}
@@ -108,6 +111,27 @@ class ArgusStereoSyncNode : public rclcpp::Node {
         image_transport, "left");
     right_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
         image_transport, "right");
+
+    // Set up camera info for both cameras
+    if (params.left_camera_info.size() > 0) {
+      if (!left_info_manager_.loadCameraInfo(params.left_camera_info)) {
+        RCLCPP_FATAL_STREAM(get_logger(),
+                            "Unable to load camera LEFT info from \""
+                                << params.left_camera_info << "\"");
+        return false;
+      }
+      left_camera_pub_->setCameraInfo(left_info_manager_.getCameraInfo());
+    }
+
+    if (params.right_camera_info.size() > 0) {
+      if (!right_info_manager_.loadCameraInfo(params.right_camera_info)) {
+        RCLCPP_FATAL_STREAM(get_logger(),
+                            "Unable to load RIGHT camera info from \""
+                                << params.right_camera_info << "\"");
+        return false;
+      }
+      right_camera_pub_->setCameraInfo(right_info_manager_.getCameraInfo());
+    }
 
     PROPAGATE_ERROR(g_display.initialize());
 
@@ -193,7 +217,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
 
     RCLCPP_INFO(get_logger(), "Stereo consumer");
     stereo_consumer_ = std::make_shared<StereoConsumer>(
-        iStreamLeft, iStreamRight, left_camera_pub_, right_camera_pub_);
+        this->get_logger(), iStreamLeft, iStreamRight, left_camera_pub_,
+        right_camera_pub_);
 
     gpio_threads_.initialize();
     gpio_threads_.waitRunning();
@@ -210,6 +235,9 @@ class ArgusStereoSyncNode : public rclcpp::Node {
   }
 
  protected:
+  camera_info_manager::CameraInfoManager left_info_manager_,
+      right_info_manager_;
+
   ArgusSamples::EGLDisplayHolder g_display;
   UniqueObj<CaptureSession> captureSession;
   std::vector<CameraDevice *> cameraDevices;

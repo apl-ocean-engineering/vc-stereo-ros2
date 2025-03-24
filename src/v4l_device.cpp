@@ -144,7 +144,7 @@ bool V4LDevice::initializeV4L2Ctrls() {
   //   print_control(fd, qctrl, show_menus);
   // }
 
-  // On success
+  // Successfully found all of the ids?
   if (trigger_mode_v4l2_id_ > 0) return true;
 
   return false;

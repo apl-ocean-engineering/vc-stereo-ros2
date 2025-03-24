@@ -1,4 +1,16 @@
 argus_stereo_sync:
+
+  # Camera info params defaults to (empty) -- no camera info
+  left_camera_info:
+    type: string
+    default_value: ""
+    description: "URL to camera info file for left camera"
+
+  right_camera_info:
+    type: string
+    default_value: ""
+    description: "URL to camera info file for left camera"
+
   framerate:
     type: int
     default_value: 10
