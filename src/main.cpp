@@ -20,8 +20,10 @@
 #include "Error.h"
 #include "argus_stereo_sync/camera_publisher.h"
 #include "argus_stereo_sync/constants.h"
+#include "argus_stereo_sync/gpio_trigger_thread.h"
 #include "argus_stereo_sync/stereo_consumer.h"
 #include "argus_stereo_sync/stereo_parameters.hpp"
+#include "argus_stereo_sync/v4l_device.h"
 
 uint8_t *oBuffer = new uint8_t[3 * STREAM_SIZE.width() * STREAM_SIZE.height()];
 
@@ -44,13 +46,14 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
-enum class TriggerType { Internal, External };
-
 class ArgusStereoSyncNode : public rclcpp::Node {
  public:
   ArgusStereoSyncNode(const std::string &node_name,
                       const rclcpp::NodeOptions &options)
-      : Node(node_name, options), camera_provider_(CameraProvider::create()) {}
+      : Node(node_name, options),
+        camera_provider_(CameraProvider::create()),
+        video0_("/dev/video0"),
+        video1_("/dev/video1") {}
 
   virtual ~ArgusStereoSyncNode() {
     RCLCPP_INFO(get_logger(), "Starting destructor");
@@ -81,14 +84,22 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     auto params = param_listener->get_params();
 
     int framerate = params.framerate;
+    RCLCPP_INFO_STREAM(get_logger(),
+                       "Setting frame rate to " << framerate << " fps");
 
-    TriggerType trigger_type;
-    if (params.trigger_type == "external") {
-      RCLCPP_INFO(get_logger(), "Configuring cameras for _external trigger");
-      trigger_type = TriggerType::External;
+    if (params.trigger_mode == "external") {
+      RCLCPP_INFO(get_logger(), "Configuring cameras for _external_ trigger");
+
+      video0_.setTrigger(TriggerType::External);
+      video1_.setTrigger(TriggerType::External);
+
+      gpio_threads_.setPeriodMs(1000 / framerate);
+
     } else {
       RCLCPP_INFO(get_logger(), "Configuring cameras for _internal_ trigger");
-      trigger_type = TriggerType::Internal;
+
+      video0_.setTrigger(TriggerType::External);
+      video1_.setTrigger(TriggerType::External);
     }
 
     left_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
@@ -206,8 +217,12 @@ class ArgusStereoSyncNode : public rclcpp::Node {
   IEGLOutputStream *iStreamRight, *iStreamLeft;
   ICaptureSession *iCaptureSession;
 
+  V4LDevice video0_, video1_;
+
   std::shared_ptr<argus_stereo_sync::CameraPublisher> left_camera_pub_,
       right_camera_pub_;
+
+  GpioThreads gpio_threads_;
 };
 
 }  // namespace argus_stereo_sync

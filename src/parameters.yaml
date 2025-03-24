@@ -6,7 +6,7 @@ argus_stereo_sync:
     validation:
       bounds<>: [1, 60]
 
-  trigger_type:
+  trigger_mode:
     type: string
     default_value: external
     description: "Camera trigger:  internal or external"
