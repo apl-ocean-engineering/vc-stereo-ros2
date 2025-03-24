@@ -26,8 +26,6 @@
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 
-uint8_t *oBuffer = new uint8_t[3 * STREAM_SIZE.width() * STREAM_SIZE.height()];
-
 namespace argus_stereo_sync {
 
 using Argus::CameraDevice;
@@ -282,11 +280,4 @@ int main(int argc, char *argv[]) {
   rclcpp::shutdown();
 
   return 0;
-
-  // if (!ArgusSamples::execute()) {
-  //   delete[] oBuffer;
-  //   return EXIT_FAILURE;
-  // }
-  // delete[] oBuffer;
-  // return EXIT_SUCCESS;
 }

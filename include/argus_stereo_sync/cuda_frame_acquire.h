@@ -33,6 +33,8 @@ class CudaFrameAcquire {
   CUstream m_stream;
 
   std::shared_ptr<argus_stereo_sync::CameraPublisher> pub_;
+
+  uint8_t* oBuffer_;
 };
 
 }  // namespace argus_stereo_sync

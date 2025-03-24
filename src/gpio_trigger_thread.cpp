@@ -91,8 +91,8 @@ void GpioThreads::setPeriodMs(uint32_t period_ms) {
 
 void GpioThreads::setTimer() {
   std::lock_guard<std::mutex> guard(timer_mutex_);
-  std::cerr << "Configuring TriggerLoop with " << period_ms_ << " ms delay"
-            << std::endl;
+  std::cerr << "Configuring TriggerLoop with " << std::dec << period_ms_
+            << " ms delay" << std::endl;
 
   struct itimerspec itval;
 
@@ -108,6 +108,7 @@ void GpioThreads::setTimer() {
 }
 
 bool GpioThreads::threadInitialize() {
+  // Fixed values for the Jetson Nano dev kit
   std::array<GpioConfig, 2> gpio_devices = {GpioConfig("/dev/gpiochip0", 49),
                                             GpioConfig("/dev/gpiochip0", 138)};
 
@@ -134,13 +135,9 @@ bool GpioThreads::threadInitialize() {
 }
 
 bool GpioThreads::threadExecute() {
-  /* Wait */
   fd_set rfds;
   int retval;
 
-  // setTimer();
-
-  /* Watch timefd file descriptor */
   FD_ZERO(&rfds);
   FD_SET(0, &rfds);
   FD_SET(timer_, &rfds);

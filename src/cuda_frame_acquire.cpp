@@ -9,6 +9,7 @@
 
 #include "CUDAHelper.h"
 #include "Error.h"
+#include "argus_stereo_sync/constants.h"
 #include "argus_stereo_sync/convert.h"
 #include "sensor_msgs/fill_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
@@ -18,7 +19,11 @@ namespace argus_stereo_sync {
 CudaFrameAcquire::CudaFrameAcquire(
     CUeglStreamConnection& connection,
     const std::shared_ptr<argus_stereo_sync::CameraPublisher>& pub)
-    : m_connection(connection), m_stream(NULL), m_resource(0), pub_(pub) {
+    : m_connection(connection),
+      m_stream(NULL),
+      m_resource(0),
+      pub_(pub),
+      oBuffer_(new uint8_t[3 * STREAM_SIZE.width() * STREAM_SIZE.height()]) {
   CUresult cuResult = cuEGLStreamConsumerAcquireFrame(
       &m_connection, &m_resource, &m_stream, -1);
 
@@ -38,6 +43,8 @@ CudaFrameAcquire::~CudaFrameAcquire() {
   if (m_resource) {
     cuEGLStreamConsumerReleaseFrame(&m_connection, m_resource, &m_stream);
   }
+
+  if (oBuffer_) delete[] oBuffer_;
 }
 
 bool CudaFrameAcquire::publish() {
@@ -62,7 +69,7 @@ bool CudaFrameAcquire::publish() {
   }
 
   float delta = convertSurfObject(cudaSurfObj1, cudaSurfObj2, m_frame.width,
-                                  m_frame.height, oBuffer);
+                                  m_frame.height, oBuffer_);
   cuSurfObjectDestroy(cudaSurfObj1);
   cuSurfObjectDestroy(cudaSurfObj2);
 
@@ -70,7 +77,7 @@ bool CudaFrameAcquire::publish() {
   // output.header.stamp = ros::Time::now();
   sensor_msgs::fillImage(output, sensor_msgs::image_encodings::BGR8,
                          m_frame.height, m_frame.width, 3 * m_frame.width,
-                         reinterpret_cast<void*>(oBuffer));
+                         reinterpret_cast<void*>(oBuffer_));
 
   pub_->publish(output);
   return true;
