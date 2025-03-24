@@ -95,11 +95,13 @@ class ArgusStereoSyncNode : public rclcpp::Node {
 
       gpio_threads_.setPeriodMs(1000 / framerate);
 
+      RCLCPP_INFO(get_logger(), " ... configured");
+
     } else {
       RCLCPP_INFO(get_logger(), "Configuring cameras for _internal_ trigger");
 
-      video0_.setTrigger(TriggerType::External);
-      video1_.setTrigger(TriggerType::External);
+      video0_.setTrigger(TriggerType::Internal);
+      video1_.setTrigger(TriggerType::Internal);
     }
 
     left_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
@@ -192,6 +194,9 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Stereo consumer");
     stereo_consumer_ = std::make_shared<StereoConsumer>(
         iStreamLeft, iStreamRight, left_camera_pub_, right_camera_pub_);
+
+    gpio_threads_.initialize();
+    gpio_threads_.waitRunning();
 
     PROPAGATE_ERROR(stereo_consumer_->initialize());
     PROPAGATE_ERROR(stereo_consumer_->waitRunning());

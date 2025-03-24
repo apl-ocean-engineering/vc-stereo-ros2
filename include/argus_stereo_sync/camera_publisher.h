@@ -17,7 +17,7 @@ class CameraPublisher {
   CameraPublisher(
       std::shared_ptr<image_transport::ImageTransport> image_transport,
       const std::string &name)
-      : publisher_(image_transport->advertiseCamera(name, 1)) {}
+      : publisher_(image_transport->advertiseCamera(name + "/image_raw", 1)) {}
 
   ~CameraPublisher() {}
 
