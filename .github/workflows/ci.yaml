@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-implementation:
-    name: Test Implementation
-    runs-on: ubuntu-latest
+  industrial-ci:
+    name: Run Industrial CI
+    runs-on: ubuntu-24.04-arm
 
     strategy:
       fail-fast: false
