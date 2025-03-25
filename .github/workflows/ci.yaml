@@ -14,10 +14,7 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix:
-        env:
-          - IMAGE: rolling-ci
-            ROS_DISTRO: rolling
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,5 +32,6 @@ jobs:
         uses: ros-industrial/industrial_ci@master
         env:
           BEFORE_INIT: './install_deps.sh'
+          ROS_DISTRO: humble
           CXXFLAGS: >-
             -Wall -Wextra -Wpedantic -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
