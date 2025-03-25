@@ -32,6 +32,6 @@ jobs:
         uses: ros-industrial/industrial_ci@master
         env:
           BEFORE_INIT: 'sh .github/workflows/install_deps.sh'
-          ROS_DISTRO: humble
+          DOCKER_IMAGE: dustynv/ros:humble-ros-base-l4t-r36.3.0
           CXXFLAGS: >-
             -Wall -Wextra -Wpedantic -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
