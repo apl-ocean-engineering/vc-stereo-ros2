@@ -31,7 +31,7 @@ jobs:
       - name: Run ROS Industrial CI
         uses: ros-industrial/industrial_ci@master
         env:
-          BEFORE_INIT: './install_deps.sh'
+          BEFORE_INIT: '.github/workflows/install_deps.sh'
           ROS_DISTRO: humble
           CXXFLAGS: >-
             -Wall -Wextra -Wpedantic -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
