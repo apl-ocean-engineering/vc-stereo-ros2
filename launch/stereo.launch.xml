@@ -3,7 +3,7 @@
     <arg name="framerate" default="10"/>
     <arg name="trigger_mode" default="internal"/>
 
-    <node pkg="argus_stereo_sync" exec="stereo_node" name="stereo_node">
+    <node pkg="vc_stereo_ros2" exec="stereo_node" name="stereo_node">
 
         <param name="framerate" value="$(var framerate)"/>
         <param name="trigger_mode" value="$(var trigger_mode)"/>

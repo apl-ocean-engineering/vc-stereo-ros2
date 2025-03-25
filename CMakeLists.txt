@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.3)
-project(argus_stereo_sync)
+project(vc_stereo_ros2)
 
 if(NOT CMAKE_CXX_STANDARD)
  set(CMAKE_CXX_STANDARD 17)

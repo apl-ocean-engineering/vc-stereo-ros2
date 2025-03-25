@@ -4,7 +4,7 @@
 
 // clang-format off
 // Must come first, do not let this be sorted with the other headers
-#include "argus_stereo_sync/stereo_consumer.h"
+#include "vc_stereo_ros2/stereo_consumer.h"
 // clang-format on
 
 #include <memory>
@@ -12,20 +12,20 @@
 #include "CUDAHelper.h"
 #include "EGLGlobal.h"
 #include "Error.h"
-#include "argus_stereo_sync/cuda_frame_acquire.h"
+#include "vc_stereo_ros2/cuda_frame_acquire.h"
 
 #define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)
 #define CONSUMER_PRINT(...) printf("CONSUMER: " __VA_ARGS__)
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 using ArgusSamples::getCudaErrorString;
 
 StereoConsumer::StereoConsumer(
     rclcpp::Logger logger, Argus::IEGLOutputStream *leftStream,
     Argus::IEGLOutputStream *rightStream,
-    const std::shared_ptr<argus_stereo_sync::CameraPublisher> &left_pub,
-    const std::shared_ptr<argus_stereo_sync::CameraPublisher> &right_pub)
+    const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &left_pub,
+    const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &right_pub)
     : logger_(logger),
       m_leftStream(leftStream),
       m_rightStream(rightStream),
@@ -116,4 +116,4 @@ bool StereoConsumer::threadShutdown() {
   return true;
 }
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

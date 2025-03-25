@@ -10,7 +10,7 @@
 #include "image_transport/image_transport.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 class CameraPublisher {
  public:
@@ -34,4 +34,4 @@ class CameraPublisher {
   sensor_msgs::msg::CameraInfo camera_info_;
 };
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

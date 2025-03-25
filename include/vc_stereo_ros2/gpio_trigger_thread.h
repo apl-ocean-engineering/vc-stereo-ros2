@@ -18,9 +18,9 @@
 #include <vector>
 
 #include "Thread.h"
-#include "argus_stereo_sync/mutex_condition.h"
+#include "vc_stereo_ros2/mutex_condition.h"
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 struct GpioConfig {
   GpioConfig(const std::string &dev, int p) : device(dev), pin(p) {}
@@ -70,4 +70,4 @@ class GpioThreads : public ArgusSamples::Thread {
   std::shared_ptr<MutexCondition> cond_;
 };
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2
