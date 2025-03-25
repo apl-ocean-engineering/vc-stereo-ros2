@@ -15,18 +15,18 @@
 
 #include "EGLGlobal.h"
 #include "Error.h"
-#include "argus_stereo_sync/camera_publisher.h"
-#include "argus_stereo_sync/constants.h"
-#include "argus_stereo_sync/gpio_trigger_thread.h"
-#include "argus_stereo_sync/stereo_consumer.h"
-#include "argus_stereo_sync/stereo_parameters.hpp"
-#include "argus_stereo_sync/v4l_device.h"
 #include "camera_info_manager/camera_info_manager.hpp"
 #include "image_transport/camera_publisher.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "vc_stereo_ros2/camera_publisher.h"
+#include "vc_stereo_ros2/constants.h"
+#include "vc_stereo_ros2/gpio_trigger_thread.h"
+#include "vc_stereo_ros2/stereo_consumer.h"
+#include "vc_stereo_ros2/stereo_parameters.hpp"
+#include "vc_stereo_ros2/v4l_device.h"
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 using Argus::CameraDevice;
 using Argus::CameraProvider;
@@ -79,9 +79,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Done -- exiting.");
   }
 
-  bool execute(
-      std::shared_ptr<image_transport::ImageTransport> image_transport,
-      std::shared_ptr<argus_stereo_sync::ParamListener> param_listener) {
+  bool execute(std::shared_ptr<image_transport::ImageTransport> image_transport,
+               std::shared_ptr<vc_stereo_ros2::ParamListener> param_listener) {
     auto params = param_listener->get_params();
 
     int framerate = params.framerate;
@@ -105,9 +104,9 @@ class ArgusStereoSyncNode : public rclcpp::Node {
       video1_.setTrigger(TriggerType::Internal);
     }
 
-    left_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
+    left_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
         image_transport, "left");
-    right_camera_pub_ = std::make_shared<argus_stereo_sync::CameraPublisher>(
+    right_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
         image_transport, "right");
 
     // Set up camera info for both cameras
@@ -250,24 +249,23 @@ class ArgusStereoSyncNode : public rclcpp::Node {
 
   V4LDevice video0_, video1_;
 
-  std::shared_ptr<argus_stereo_sync::CameraPublisher> left_camera_pub_,
+  std::shared_ptr<vc_stereo_ros2::CameraPublisher> left_camera_pub_,
       right_camera_pub_;
 
   GpioThreads gpio_threads_;
 };
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2
 
 int main(int argc, char *argv[]) {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<argus_stereo_sync::ArgusStereoSyncNode>(
-      "argus_stereo_sync", rclcpp::NodeOptions());
+  auto node = std::make_shared<vc_stereo_ros2::ArgusStereoSyncNode>(
+      "vc_stereo_ros2", rclcpp::NodeOptions());
 
   auto image_transport =
       std::make_shared<image_transport::ImageTransport>(node);
 
-  auto param_listener =
-      std::make_shared<argus_stereo_sync::ParamListener>(node);
+  auto param_listener = std::make_shared<vc_stereo_ros2::ParamListener>(node);
 
   if (!node->execute(image_transport, param_listener)) {
     return -1;

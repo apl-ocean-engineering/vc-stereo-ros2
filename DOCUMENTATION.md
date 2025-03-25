@@ -40,7 +40,7 @@ The code for this package has been adapted from the syncSensor sample program. D
 - __uint8_t* oBuffer__: Host memory buffer used to store raw image data. 3 channels, BGR, each with width * height bytes of data.
 - __EGLDisplayHolder g_display__: ```TODO: EGLDisplay is used for rendering and is a required parameter of some of our functions, however a better understanding is necessary```
 
-This file contains almost all the code for our _argus_stereo_sync_ ROS node. It define multiple functionalities include ROS setup, initiating camera session, defining capture session settings such as framerate and image resolution, acquiring frames, calling color conversion kernel, and publishing converted frames to their respective ROS topics. These actions are described in detail in the method descriptions below.
+This file contains almost all the code for our _vc_stereo_ros2_ ROS node. It define multiple functionalities include ROS setup, initiating camera session, defining capture session settings such as framerate and image resolution, acquiring frames, calling color conversion kernel, and publishing converted frames to their respective ROS topics. These actions are described in detail in the method descriptions below.
 
 ![Libargus Flowchart](https://www.e-consystems.com/images/argus_app_flow.png)
 

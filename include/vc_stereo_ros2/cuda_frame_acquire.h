@@ -11,16 +11,15 @@
 
 #include <cudaEGL.h>
 
-#include "argus_stereo_sync/camera_publisher.h"
+#include "vc_stereo_ros2/camera_publisher.h"
 // clang-format on
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 class CudaFrameAcquire {
  public:
-  CudaFrameAcquire(
-      CUeglStreamConnection& connection,
-      const std::shared_ptr<argus_stereo_sync::CameraPublisher>& pub);
+  CudaFrameAcquire(CUeglStreamConnection& connection,
+                   const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub);
 
   ~CudaFrameAcquire();
 
@@ -32,9 +31,9 @@ class CudaFrameAcquire {
   CUeglFrame m_frame;
   CUstream m_stream;
 
-  std::shared_ptr<argus_stereo_sync::CameraPublisher> pub_;
+  std::shared_ptr<vc_stereo_ros2::CameraPublisher> pub_;
 
   uint8_t* oBuffer_;
 };
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

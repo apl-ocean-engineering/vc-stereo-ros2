@@ -1,8 +1,8 @@
-# Argus Stereo Sync
+# vc-stereo-ros2
 
-This a ROS2 driver for publishing data from two cameras through the `libargus`, the Image Signal Processor built into the **Jetpack** OS for Jetson devices.  We have been testing with two IMX296-based [Vision Components](https://www.vision-components.com/en/) cameras attached to a Jetson Orin Nano development kit running [Jetpack 6.2](https://developer.nvidia.com/embedded/jetpack).   As Jetpack 6.2 is based on Ubuntu 22.04, we run ROS2 "humble" built from source with our [custom installer](https://gitlab.com/rsa-perception-sensor/trisect_environment/-/tree/jetpack-6.1?ref_type=heads).
+This a ROS2 driver for publishing data from two cameras through the `libargus`, the Image Signal Processor SW/HW library provided by the **Jetpack** OS for Jetson devices.  We have been testing with two IMX296-based [Vision Components](https://www.vision-components.com/en/) cameras attached to a Jetson Orin Nano development kit running [Jetpack 6.2](https://developer.nvidia.com/embedded/jetpack).   As Jetpack 6.2 is based on Ubuntu 22.04, we run ROS2 "humble" built from source with our [custom installer](https://gitlab.com/rsa-perception-sensor/trisect_environment/-/tree/jetpack-6.1?ref_type=heads).
 
-**Status:**  This software is under active development.  It contains constants specific to our cameras (sensor size, etc.) and to the Jetson Nano baseboard (GPIOs used for external triggering).
+**Status:**  This software is under active development.  It contains constants specific to our cameras (sensor size, etc.) and to the Jetson Nano baseboard (GPIOs used for external triggering);  using other hardware will require code changes.
 
 [[TOC]]
 
@@ -16,21 +16,19 @@ $ sudo apt-get install -y nvidia-l4t-jetson-multimedia-api
 
 Follow these steps to create a ROS workspace:
 ```sh
-$ mkdir catkin_ws && cd catkin_ws
-$ mkdir src && cd src
+$ mkdir -p ros_ws/src && cd ros_ws/src
 $ catkin_init_workspace
 ```
 Install Argus Stereo Sync:
 ```sh
-$ git clone https://github.com/Nekhera/argus_stereo_sync.git
-$ cd argus_stereo_sync/libs
-$ cd /path/to/catkin_ws
-$ catkin_make -DCMAKE_BUILD_TYPE=Release
+$ git clone https://github.com/apl-ocean-engineering/vc-stereo-ros2.git
+$ cd ..
+$ colcon build
 ```
 
 This will build the package. To run the stereo sync node, type:
 ```sh
-$ ros2 launch argus_stereo_sync argus_stereo.launch.xml
+$ ros2 launch vc_stereo_ros2 stereo.launch.xml
 ```
 
 

@@ -2,7 +2,7 @@
 //
 // Copyright 2025 University of Washington
 
-#include "argus_stereo_sync/v4l_device.h"
+#include "vc_stereo_ros2/v4l_device.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string>
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 #define IOCTL_TRIES 3
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
@@ -223,4 +223,4 @@ bool V4LDevice::setTrigger(const TriggerType trigger_type) {
 //   return true;
 // }
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

@@ -3,22 +3,22 @@
 //
 // Copyright 2025 University of Washington
 
-#include "argus_stereo_sync/cuda_frame_acquire.h"
+#include "vc_stereo_ros2/cuda_frame_acquire.h"
 
 #include <cstdio>
 
 #include "CUDAHelper.h"
 #include "Error.h"
-#include "argus_stereo_sync/constants.h"
-#include "argus_stereo_sync/convert.h"
 #include "sensor_msgs/fill_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
+#include "vc_stereo_ros2/constants.h"
+#include "vc_stereo_ros2/convert.h"
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 CudaFrameAcquire::CudaFrameAcquire(
     CUeglStreamConnection& connection,
-    const std::shared_ptr<argus_stereo_sync::CameraPublisher>& pub)
+    const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub)
     : m_connection(connection),
       m_stream(NULL),
       m_resource(0),
@@ -83,4 +83,4 @@ bool CudaFrameAcquire::publish() {
   return true;
 }
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

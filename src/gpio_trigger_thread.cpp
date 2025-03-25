@@ -2,14 +2,14 @@
 //
 // Copyright 2025 University of Washington
 
-#include "argus_stereo_sync/gpio_trigger_thread.h"
+#include "vc_stereo_ros2/gpio_trigger_thread.h"
 
 #include <string.h>
 
 #include <iostream>
 #include <memory>
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 GpioTriggerThread::GpioTriggerThread(
     const std::shared_ptr<MutexCondition> &cond)
@@ -158,4 +158,4 @@ bool GpioThreads::threadExecute() {
   return true;
 }
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2
