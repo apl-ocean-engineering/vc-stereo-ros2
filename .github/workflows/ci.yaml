@@ -34,6 +34,6 @@ jobs:
       - name: Run ROS Industrial CI
         uses: ros-industrial/industrial_ci@master
         env:
-          DOCKER_IMAGE: dustynv/ros:humble-ros-base-l4t-r36.3.0
+          BEFORE_INIT: './install_deps.sh'
           CXXFLAGS: >-
             -Wall -Wextra -Wpedantic -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
