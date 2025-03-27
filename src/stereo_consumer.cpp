@@ -22,11 +22,14 @@ namespace vc_stereo_ros2 {
 using ArgusSamples::getCudaErrorString;
 
 StereoConsumer::StereoConsumer(
-    rclcpp::Logger logger, Argus::IEGLOutputStream *leftStream,
-    Argus::IEGLOutputStream *rightStream,
+    rclcpp::Logger logger, const std::shared_ptr<rclcpp::Clock> &clock,
+    const Argus::Size2D<uint32_t> &stream_size,
+    Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
     const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &left_pub,
     const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &right_pub)
     : logger_(logger),
+      clock_(clock),
+      stream_size_(stream_size),
       m_leftStream(leftStream),
       m_rightStream(rightStream),
       m_cuStreamLeft(nullptr),
@@ -87,10 +90,11 @@ bool StereoConsumer::threadExecute() {
       break;
     }
 
-    CudaFrameAcquire left_acq(m_cuStreamLeft, left_pub_);
-    CudaFrameAcquire right_acq(m_cuStreamRight, right_pub_);
+    CudaFrameAcquire left_acq(m_cuStreamLeft, left_pub_, stream_size_);
+    CudaFrameAcquire right_acq(m_cuStreamRight, right_pub_, stream_size_);
 
-    PROPAGATE_ERROR(left_acq.publish() && right_acq.publish());
+    const auto t = clock_->now();
+    PROPAGATE_ERROR(left_acq.publish(t) && right_acq.publish(t));
   }
 
   RCLCPP_INFO(logger_, "No more frames. Cleaning up.");

@@ -5,25 +5,27 @@
 
 #include "vc_stereo_ros2/cuda_frame_acquire.h"
 
+#include <Argus/Argus.h>
+
 #include <cstdio>
 
 #include "CUDAHelper.h"
 #include "Error.h"
 #include "sensor_msgs/fill_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "vc_stereo_ros2/constants.h"
 #include "vc_stereo_ros2/convert.h"
 
 namespace vc_stereo_ros2 {
 
 CudaFrameAcquire::CudaFrameAcquire(
     CUeglStreamConnection& connection,
-    const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub)
+    const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub,
+    const Argus::Size2D<uint32_t>& stream_size)
     : m_connection(connection),
       m_stream(NULL),
       m_resource(0),
       pub_(pub),
-      oBuffer_(new uint8_t[3 * STREAM_SIZE.width() * STREAM_SIZE.height()]) {
+      oBuffer_(new uint8_t[3 * stream_size.width() * stream_size.height()]) {
   CUresult cuResult = cuEGLStreamConsumerAcquireFrame(
       &m_connection, &m_resource, &m_stream, -1);
 
@@ -47,7 +49,7 @@ CudaFrameAcquire::~CudaFrameAcquire() {
   if (oBuffer_) delete[] oBuffer_;
 }
 
-bool CudaFrameAcquire::publish() {
+bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
   CUDA_RESOURCE_DESC cudaResourceDesc;
   memset(&cudaResourceDesc, 0, sizeof(cudaResourceDesc));
   cudaResourceDesc.resType = CU_RESOURCE_TYPE_ARRAY;
@@ -74,7 +76,7 @@ bool CudaFrameAcquire::publish() {
   cuSurfObjectDestroy(cudaSurfObj2);
 
   sensor_msgs::msg::Image output;
-  // output.header.stamp = ros::Time::now();
+  output.header.stamp = now;
   sensor_msgs::fillImage(output, sensor_msgs::image_encodings::BGR8,
                          m_frame.height, m_frame.width, 3 * m_frame.width,
                          reinterpret_cast<void*>(oBuffer_));

@@ -24,8 +24,9 @@ namespace vc_stereo_ros2 {
 class StereoConsumer : public ArgusSamples::Thread {
  public:
   explicit StereoConsumer(
-      rclcpp::Logger logger, Argus::IEGLOutputStream *leftStream,
-      Argus::IEGLOutputStream *rightStream,
+      rclcpp::Logger logger, const std::shared_ptr<rclcpp::Clock> &clock,
+      const Argus::Size2D<uint32_t> &stream_size,
+      Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
       const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &left_pub,
       const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &right_pub);
 
@@ -37,6 +38,9 @@ class StereoConsumer : public ArgusSamples::Thread {
   virtual bool threadShutdown();
 
   rclcpp::Logger logger_;
+  std::shared_ptr<rclcpp::Clock> clock_;
+  Argus::Size2D<uint32_t> stream_size_;
+
   Argus::IEGLOutputStream *m_leftStream;
   Argus::IEGLOutputStream *m_rightStream;
   CUeglStreamConnection m_cuStreamLeft;

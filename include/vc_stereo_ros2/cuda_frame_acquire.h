@@ -7,23 +7,26 @@
 // clang-format off
 // rclcpp.hpp must be included before anything that might call X11.h
 #include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/image.hpp>
+// clang-format on
 
+#include <Argus/Argus.h>
 #include <cudaEGL.h>
 
+#include <sensor_msgs/msg/image.hpp>
+
 #include "vc_stereo_ros2/camera_publisher.h"
-// clang-format on
 
 namespace vc_stereo_ros2 {
 
 class CudaFrameAcquire {
  public:
   CudaFrameAcquire(CUeglStreamConnection& connection,
-                   const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub);
+                   const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub,
+                   const Argus::Size2D<uint32_t>& stream_size);
 
   ~CudaFrameAcquire();
 
-  bool publish();
+  bool publish(const rclcpp::Time& now);
 
  private:
   CUeglStreamConnection& m_connection;
