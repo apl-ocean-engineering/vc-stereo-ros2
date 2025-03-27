@@ -34,6 +34,8 @@ using Argus::CaptureSession;
 using Argus::IAutoControlSettings;
 using Argus::ICameraProvider;
 using Argus::ICaptureSession;
+using Argus::IDenoiseSettings;
+using Argus::IEdgeEnhanceSettings;
 using Argus::IEGLOutputStream;
 using Argus::IEGLOutputStreamSettings;
 using Argus::IOutputStreamSettings;
@@ -206,6 +208,20 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
     iSourceSettings->setExposureTimeRange(EXPOSURE_TIME_RANGE);
     iSourceSettings->setGainRange(GAIN_RANGE);
+
+    // Valid values: DENOISE_MODE_OFF, EDGE_ENHANCE_MODE_FAST,
+    // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setDenoiseStrength(x) for 0 <= x <=
+    // 1
+    IDenoiseSettings *denoiseSettings =
+        Argus::interface_cast<IDenoiseSettings>(request);
+    denoiseSettings->setDenoiseMode(Argus::DENOISE_MODE_OFF);
+
+    // Valid values: EDGE_ENHANCE_MODE_OFF, EDGE_ENHANCE_MODE_FAST,
+    // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setEdgeEnhanceStrength(x) for 0 <=
+    // x <= 1
+    IEdgeEnhanceSettings *edgeEnhanceSettings =
+        Argus::interface_cast<IEdgeEnhanceSettings>(request);
+    edgeEnhanceSettings->setEdgeEnhanceMode(Argus::EDGE_ENHANCE_MODE_OFF);
 
     IAutoControlSettings *iAutoControlSettings =
         Argus::interface_cast<IAutoControlSettings>(
