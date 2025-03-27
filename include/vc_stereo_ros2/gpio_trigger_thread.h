@@ -32,7 +32,6 @@ struct GpioConfig {
 class GpioTriggerThread : public ArgusSamples::Thread {
  public:
   explicit GpioTriggerThread(const std::shared_ptr<MutexCondition> &cond);
-
   ~GpioTriggerThread();
 
   bool configure(const GpioConfig &config);
@@ -53,7 +52,7 @@ class GpioThreads : public ArgusSamples::Thread {
   explicit GpioThreads(uint32_t initial_period_ms = 0);
   ~GpioThreads();
 
-  // \todo Need to add code to _stop_ the timer if period is 0
+  // \todo Need to add code to _stop_ the timer if period is set to 0
   void setPeriodMs(uint32_t period_ms);
   void setTimer();
 
