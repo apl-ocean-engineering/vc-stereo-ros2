@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "Thread.h"
+#include "nvidia_multimedia_api/Thread.h"
 
 namespace vc_stereo_ros2 {
 

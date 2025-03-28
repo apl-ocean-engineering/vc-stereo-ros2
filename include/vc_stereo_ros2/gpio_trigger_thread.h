@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-#include "Thread.h"
+#include "nvidia_multimedia_api/Thread.h"
 #include "vc_stereo_ros2/mutex_condition.h"
 
 namespace vc_stereo_ros2 {

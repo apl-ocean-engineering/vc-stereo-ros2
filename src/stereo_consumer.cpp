@@ -9,9 +9,9 @@
 
 #include <memory>
 
-#include "CUDAHelper.h"
-#include "EGLGlobal.h"
-#include "Error.h"
+#include "nvidia_multimedia_api/CUDAHelper.h"
+#include "nvidia_multimedia_api/EGLGlobal.h"
+#include "nvidia_multimedia_api/Error.h"
 #include "vc_stereo_ros2/cuda_frame_acquire.h"
 
 #define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)

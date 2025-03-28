@@ -13,10 +13,10 @@
 #include <string>
 #include <vector>
 
-#include "EGLGlobal.h"
-#include "Error.h"
 #include "camera_info_manager/camera_info_manager.hpp"
 #include "image_transport/camera_publisher.hpp"
+#include "nvidia_multimedia_api/EGLGlobal.h"
+#include "nvidia_multimedia_api/Error.h"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "vc_stereo_ros2/camera_publisher.h"
@@ -56,6 +56,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
   ArgusStereoSyncNode(const std::string &node_name,
                       const rclcpp::NodeOptions &options)
       : Node(node_name, options),
+        g_display(true),
         left_info_manager_(this, "left"),
         right_info_manager_(this, "right"),
         camera_provider_(CameraProvider::create()),

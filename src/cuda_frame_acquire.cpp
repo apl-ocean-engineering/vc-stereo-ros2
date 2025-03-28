@@ -8,9 +8,10 @@
 #include <Argus/Argus.h>
 
 #include <cstdio>
+#include <memory>
 
-#include "CUDAHelper.h"
-#include "Error.h"
+#include "nvidia_multimedia_api/CUDAHelper.h"
+#include "nvidia_multimedia_api/Error.h"
 #include "sensor_msgs/fill_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "vc_stereo_ros2/convert.h"
