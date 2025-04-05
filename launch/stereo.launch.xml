@@ -8,6 +8,11 @@
         <param name="framerate" value="$(var framerate)"/>
         <param name="trigger_mode" value="$(var trigger_mode)"/>
 
+        <param name="left.image_raw.enable_pub_plugins" value='["image_transport/raw"]'/>
+        <param name="right.image_raw.enable_pub_plugins" value='["image_transport/raw"]'/>
+
+
     </node>
+
 
 </launch>
