@@ -46,9 +46,10 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
-static const Argus::Range<float> GAIN_RANGE(1, 44);
+static const Argus::Range<float> GAIN_RANGE(1, 48);
 static const Argus::Range<float> ISP_DIGITAL_GAIN_RANGE(1, 1);
-static const Argus::Range<uint64_t> EXPOSURE_TIME_RANGE(44000, 1000000);
+// In nanoseconds
+static const Argus::Range<uint64_t> EXPOSURE_TIME_RANGE(44000, 20000000);
 static const Argus::Size2D<uint32_t> STREAM_SIZE(1440, 1080);
 
 class ArgusStereoSyncNode : public rclcpp::Node {
