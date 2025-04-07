@@ -15,6 +15,7 @@
 
 #include "camera_info_manager/camera_info_manager.hpp"
 #include "image_transport/camera_publisher.hpp"
+#include "imaging_msgs/msg/imaging_metadata.hpp"
 #include "nvidia_multimedia_api/EGLGlobal.h"
 #include "nvidia_multimedia_api/Error.h"
 #include "sensor_msgs/msg/camera_info.hpp"
@@ -113,9 +114,13 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     }
 
     left_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        image_transport, "left");
+        image_transport, "left",
+        this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
+            "left/imaging_metadata", 1));
     right_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        image_transport, "right");
+        image_transport, "right",
+        this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
+            "right/imaging_metadata", 1));
 
     // Set up camera info for both cameras
     if (params.left_camera_info.size() > 0) {
@@ -275,8 +280,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     }
 
     stereo_consumer_ = std::make_shared<StereoConsumer>(
-        this->get_logger(), this->get_clock(), STREAM_SIZE, istream_left_,
-        istream_right_, left_camera_pub_, right_camera_pub_);
+        this->get_logger(), this->get_clock(), STREAM_SIZE, &g_display,
+        istream_left_, istream_right_, left_camera_pub_, right_camera_pub_);
 
     gpio_threads_.initialize();
     gpio_threads_.waitRunning();

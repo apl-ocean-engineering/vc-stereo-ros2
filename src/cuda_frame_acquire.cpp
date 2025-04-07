@@ -6,6 +6,8 @@
 #include "vc_stereo_ros2/cuda_frame_acquire.h"
 
 #include <Argus/Argus.h>
+#include <EGLStream/EGLStream.h>
+#include <EGLStream/MetadataContainer.h>
 
 #include <cstdio>
 #include <memory>
@@ -19,13 +21,18 @@
 namespace vc_stereo_ros2 {
 
 CudaFrameAcquire::CudaFrameAcquire(
-    CUeglStreamConnection& connection,
+    CUeglStreamConnection& connection, rclcpp::Logger logger,
+    ArgusSamples::EGLDisplayHolder* display,
+    Argus::IEGLOutputStream* egl_stream,
     const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub,
     const Argus::Size2D<uint32_t>& stream_size)
     : m_connection(connection),
       m_stream(NULL),
       m_resource(0),
       pub_(pub),
+      exposure_ns_(0),
+      analog_gain_(0),
+      isp_gain_(0),
       oBuffer_(new uint8_t[3 * stream_size.width() * stream_size.height()]) {
   CUresult cuResult = cuEGLStreamConsumerAcquireFrame(
       &m_connection, &m_resource, &m_stream, -1);
@@ -39,6 +46,30 @@ CudaFrameAcquire::CudaFrameAcquire(
   } else {
     printf("Unable to acquire frame (%s)",
            ArgusSamples::getCudaErrorString(cuResult));
+  }
+
+  Argus::Status status;
+  Argus::UniqueObj<EGLStream::MetadataContainer> metadataContainer(
+      EGLStream::MetadataContainer::create(
+          display->get(), egl_stream->getEGLStream(),
+          EGLStream::MetadataContainer::CONSUMER, &status));
+  EGLStream::IArgusCaptureMetadata* iArgusCaptureMetadata =
+      Argus::interface_cast<EGLStream::IArgusCaptureMetadata>(
+          metadataContainer);
+  if (iArgusCaptureMetadata) {
+    auto leftMetadata = iArgusCaptureMetadata->getMetadata();
+    auto ILeftMetadata =
+        Argus::interface_cast<Argus::ICaptureMetadata>(leftMetadata);
+
+    if (!ILeftMetadata) {
+      RCLCPP_WARN(logger, "Cannot get metadata");
+    } else {
+      exposure_ns_ = ILeftMetadata->getSensorExposureTime();
+      analog_gain_ = ILeftMetadata->getSensorAnalogGain();
+      isp_gain_ = ILeftMetadata->getIspDigitalGain();
+    }
+  } else {
+    RCLCPP_WARN_STREAM(logger, "Could not query metadata (" << status << ")");
   }
 }
 
@@ -81,8 +112,14 @@ bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
   sensor_msgs::fillImage(output, sensor_msgs::image_encodings::BGR8,
                          m_frame.height, m_frame.width, 3 * m_frame.width,
                          reinterpret_cast<void*>(oBuffer_));
-
   pub_->publish(output);
+
+  imaging_msgs::msg::ImagingMetadata meta_msg;
+  meta_msg.header.stamp = output.header.stamp;
+  meta_msg.exposure_us = exposure_ns_ / 1e3;
+  meta_msg.gain = analog_gain_;
+  pub_->publish_metadata(meta_msg);
+
   return true;
 }
 

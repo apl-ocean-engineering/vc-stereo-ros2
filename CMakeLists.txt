@@ -14,12 +14,13 @@ set(ARGUS_DIR /usr/src/jetson_multimedia_api/argus)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake "${CMAKE_MODULE_PATH}")
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
-  rclcpp
-  rclcpp_components
   ament_cmake
   camera_info_manager
-  image_transport
   generate_parameter_library
+  image_transport
+  imaging_msgs
+  rclcpp
+  rclcpp_components
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})

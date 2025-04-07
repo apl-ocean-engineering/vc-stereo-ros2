@@ -1,8 +1,15 @@
 # vc-stereo-ros2
 
-This a ROS2 driver for publishing data from two cameras through the `libargus`, the Image Signal Processor SW/HW library provided by the **Jetpack** OS for Jetson devices.  We have been testing with two IMX296-based [Vision Components](https://www.vision-components.com/en/) cameras attached to a Jetson Orin Nano development kit running [Jetpack 6.2](https://developer.nvidia.com/embedded/jetpack).   As Jetpack 6.2 is based on Ubuntu 22.04, we run ROS2 "humble" built from source with our [custom installer](https://gitlab.com/rsa-perception-sensor/trisect_environment/-/tree/jetpack-6.1?ref_type=heads).
+This is a sample ROS2 driver for two cameras published via `libargus`, the Image Signal Processor (ISP) SW/HW provided by the **Jetpack** OS for Jetson devices.
 
-**Status:**  This software is under active development.  It contains constants specific to our cameras (sensor size, etc.) and to the Jetson Nano baseboard (GPIOs used for external triggering);  using other hardware will require code changes.
+Our test setup is a Jetson Orin Nano development kit running [Jetpack 6.2](https://developer.nvidia.com/embedded/jetpack) with two IMX296-based [Vision Components](https://www.vision-components.com/en/).   For our testing, we run ROS2 "humble" built from source with our [custom installer](https://gitlab.com/rsa-perception-sensor/trisect_environment/-/tree/jetpack-6.1?ref_type=heads).  However as Jetpack 6.2 is based on Ubuntu 22.04, it should work with the standard "humble" packages from the ROS archive.
+
+This software is mostly generic, but contains a few customizations specific to our case:
+
+* It contains constants specific to our cameras (sensor size, etc.)
+* We use GPIOs on the Jetson Nano board for external triggering.   This code contains a simple hardware loop for triggering the cameras.
+
+**Status:**  This software is under active development.  Please submit an [Issue](https://github.com/apl-ocean-engineering/vc-stereo-ros2/issues) with any questions.
 
 [[TOC]]
 
@@ -34,7 +41,7 @@ $ ros2 launch vc_stereo_ros2 stereo.launch.xml
 
 ### License
 
-This driver is signicantly evolved from [NeilKhera/argus_stereo_sync](https://github.com/NeilKhera/argus_stereo_sync) and retains the MIT license of that original version.
+This driver is signicantly evolved from [NeilKhera/argus_stereo_sync](https://github.com/NeilKhera/argus_stereo_sync) which is itself based on sample code from the Jetson Multimedia API.  It retains the MIT license of that original version.
 
 > MIT License. Copyright (c) 2025 University of Washington
 
