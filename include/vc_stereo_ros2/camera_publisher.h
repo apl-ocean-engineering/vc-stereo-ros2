@@ -17,8 +17,8 @@ namespace vc_stereo_ros2 {
 class CameraPublisher {
  public:
   CameraPublisher(
-      std::shared_ptr<image_transport::ImageTransport> image_transport,
       const std::string &name,
+      std::shared_ptr<image_transport::ImageTransport> image_transport,
       const rclcpp::Publisher<imaging_msgs::msg::ImagingMetadata>::SharedPtr
           &metadata_pub)
       : publisher_(image_transport->advertiseCamera(name + "/image_raw", 1)),

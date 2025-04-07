@@ -124,8 +124,6 @@ bool V4LDevice::initializeV4L2Ctrls() {
     auto id_name = name2var(qctrl.name);
 
     if (strncmp(id_name.c_str(), "trigger_mode", 12) == 0) {
-      std::cerr << "Found \"trigger_mode\" at id " << std::hex << qctrl.id
-                << std::endl;
       trigger_mode_v4l2_id_ = qctrl.id;
     }
 

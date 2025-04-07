@@ -3,11 +3,23 @@
     <arg name="framerate" default="10"/>
     <arg name="trigger_mode" default="internal"/>
 
+    <arg name="hostname" default="clyde"/>
+    <arg name="environment" default="in_water"/>
+
+    <arg name="left_camera_info" default="file://$(find-pkg-share vc_stereo_ros2)/calibrations/$(var hostname)/$(var environment)/left_stereo_params.yaml"/>
+    <arg name="right_camera_info" default="file://$(find-pkg-share vc_stereo_ros2)/calibrations/$(var hostname)/$(var environment)/right_stereo_params.yaml"/>
+
+
     <node pkg="vc_stereo_ros2" exec="stereo_node" name="stereo_node">
 
         <param name="framerate" value="$(var framerate)"/>
         <param name="trigger_mode" value="$(var trigger_mode)"/>
 
+        <param name="left_camera_info" value="$(var left_camera_info)"/>
+        <param name="right_camera_info" value="$(var right_camera_info)"/>
+
+        <!-- Compressed image transport was causing SIGBUS.  Wha...?
+             Disable most image_transports. -->
         <param name="left.image_raw.enable_pub_plugins" value='["image_transport/raw"]'/>
         <param name="right.image_raw.enable_pub_plugins" value='["image_transport/raw"]'/>
 

@@ -114,11 +114,11 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     }
 
     left_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        image_transport, "left",
+        "left", image_transport,
         this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
             "left/imaging_metadata", 1));
     right_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        image_transport, "right",
+        "right", image_transport,
         this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
             "right/imaging_metadata", 1));
 

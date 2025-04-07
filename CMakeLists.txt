@@ -118,12 +118,18 @@ install(
 # # ament_export_targets(export_${arena_camera_lib} HAS_LIBRARY_TARGET)
 # # ament_export_dependencies(arena_camera_parameters)
 
-install(TARGETS stereo_node
+install(
+  TARGETS stereo_node
   DESTINATION lib/${PROJECT_NAME}
   )
 
 install(
   DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(
+  DIRECTORY config/calibrations
   DESTINATION share/${PROJECT_NAME}/
 )
 
