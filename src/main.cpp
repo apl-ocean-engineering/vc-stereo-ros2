@@ -13,14 +13,14 @@
 #include <string>
 #include <vector>
 
-#include "EGLGlobal.h"
-#include "Error.h"
 #include "camera_info_manager/camera_info_manager.hpp"
 #include "image_transport/camera_publisher.hpp"
+#include "imaging_msgs/msg/imaging_metadata.hpp"
+#include "nvidia_multimedia_api/EGLGlobal.h"
+#include "nvidia_multimedia_api/Error.h"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "vc_stereo_ros2/camera_publisher.h"
-#include "vc_stereo_ros2/constants.h"
 #include "vc_stereo_ros2/gpio_trigger_thread.h"
 #include "vc_stereo_ros2/stereo_consumer.h"
 #include "vc_stereo_ros2/stereo_parameters.hpp"
@@ -47,11 +47,18 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
+static const Argus::Range<float> GAIN_RANGE(1, 48);
+static const Argus::Range<float> ISP_DIGITAL_GAIN_RANGE(1, 1);
+// In nanoseconds
+static const Argus::Range<uint64_t> EXPOSURE_TIME_RANGE(44000, 20000000);
+static const Argus::Size2D<uint32_t> STREAM_SIZE(1440, 1080);
+
 class ArgusStereoSyncNode : public rclcpp::Node {
  public:
   ArgusStereoSyncNode(const std::string &node_name,
                       const rclcpp::NodeOptions &options)
       : Node(node_name, options),
+        g_display(true),
         left_info_manager_(this, "left"),
         right_info_manager_(this, "right"),
         camera_provider_(CameraProvider::create()),
@@ -61,12 +68,12 @@ class ArgusStereoSyncNode : public rclcpp::Node {
   virtual ~ArgusStereoSyncNode() {
     RCLCPP_INFO(get_logger(), "Starting destructor");
 
-    iCaptureSession->stopRepeat();
-    iCaptureSession->waitForIdle();
+    icapture_session_->stopRepeat();
+    icapture_session_->waitForIdle();
 
     RCLCPP_INFO(get_logger(), "Captures complete, disconnecting producer.");
-    iStreamLeft->disconnect();
-    iStreamRight->disconnect();
+    istream_left_->disconnect();
+    istream_right_->disconnect();
 
     if (stereo_consumer_) {
       PROPAGATE_ERROR_CONTINUE(stereo_consumer_->shutdown());
@@ -107,9 +114,13 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     }
 
     left_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        image_transport, "left");
+        "left", image_transport,
+        this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
+            "left/imaging_metadata", 1));
     right_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        image_transport, "right");
+        "right", image_transport,
+        this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
+            "right/imaging_metadata", 1));
 
     // Set up camera info for both cameras
     if (params.left_camera_info.size() > 0) {
@@ -142,96 +153,135 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Argus Version: %s",
                 iCameraProvider->getVersion().c_str());
 
-    iCameraProvider->getCameraDevices(&cameraDevices);
+    iCameraProvider->getCameraDevices(&camera_devices_);
     RCLCPP_INFO(get_logger(), "CAMERA DEVICES COUNT: %lu",
-                cameraDevices.size());
-    if (cameraDevices.size() < 2) {
+                camera_devices_.size());
+    if (camera_devices_.size() < 2) {
       ORIGINATE_ERROR("Must have at least 2 sensors available");
     }
 
     std::vector<CameraDevice *> lrCameras;
-    lrCameras.push_back(cameraDevices[0]);
-    lrCameras.push_back(cameraDevices[1]);
+    lrCameras.push_back(camera_devices_[0]);
+    lrCameras.push_back(camera_devices_[1]);
 
-    captureSession.reset(iCameraProvider->createCaptureSession(lrCameras));
-    iCaptureSession = Argus::interface_cast<ICaptureSession>(captureSession);
-    if (!iCaptureSession) {
+    capture_session_.reset(iCameraProvider->createCaptureSession(lrCameras));
+    icapture_session_ =
+        Argus::interface_cast<ICaptureSession>(capture_session_);
+    if (!icapture_session_) {
       ORIGINATE_ERROR("Failed to get capture session interface");
     }
 
     UniqueObj<OutputStreamSettings> streamSettings(
-        iCaptureSession->createOutputStreamSettings(Argus::STREAM_TYPE_EGL));
+        icapture_session_->createOutputStreamSettings(Argus::STREAM_TYPE_EGL));
+
     IOutputStreamSettings *iStreamSettings =
         Argus::interface_cast<IOutputStreamSettings>(streamSettings);
-    IEGLOutputStreamSettings *iEGLStreamSettings =
-        Argus::interface_cast<IEGLOutputStreamSettings>(streamSettings);
-    if (!iStreamSettings || !iEGLStreamSettings) {
-      ORIGINATE_ERROR("Failed to create OutputStreamSettings");
+
+    {
+      IEGLOutputStreamSettings *iEGLStreamSettings =
+          Argus::interface_cast<IEGLOutputStreamSettings>(streamSettings);
+      if (!iStreamSettings || !iEGLStreamSettings) {
+        ORIGINATE_ERROR("Failed to create OutputStreamSettings");
+      }
+      iEGLStreamSettings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
+      iEGLStreamSettings->setResolution(STREAM_SIZE);
+      iEGLStreamSettings->setEGLDisplay(g_display.get());
+      iEGLStreamSettings->setMode(Argus::EGL_STREAM_MODE_MAILBOX);
+      iEGLStreamSettings->setMetadataEnable(true);
     }
-    iEGLStreamSettings->setPixelFormat(Argus::PIXEL_FMT_YCbCr_420_888);
-    iEGLStreamSettings->setResolution(STREAM_SIZE);
-    iEGLStreamSettings->setEGLDisplay(g_display.get());
-    iEGLStreamSettings->setMode(Argus::EGL_STREAM_MODE_MAILBOX);
-    iEGLStreamSettings->setMetadataEnable(true);
 
     RCLCPP_INFO(get_logger(), "Creating left stream.");
     iStreamSettings->setCameraDevice(lrCameras[0]);
-    streamLeft.reset(iCaptureSession->createOutputStream(streamSettings.get()));
-    iStreamLeft = Argus::interface_cast<IEGLOutputStream>(streamLeft);
-    if (!iStreamLeft) {
+    stream_left_.reset(
+        icapture_session_->createOutputStream(streamSettings.get()));
+    istream_left_ = Argus::interface_cast<IEGLOutputStream>(stream_left_);
+    if (!istream_left_) {
       ORIGINATE_ERROR("Failed to create left stream");
     }
 
     RCLCPP_INFO(get_logger(), "Creating right stream.");
     iStreamSettings->setCameraDevice(lrCameras[1]);
-    streamRight.reset(
-        iCaptureSession->createOutputStream(streamSettings.get()));
-    iStreamRight = Argus::interface_cast<IEGLOutputStream>(streamRight);
-    if (!iStreamRight) {
+    stream_right_.reset(
+        icapture_session_->createOutputStream(streamSettings.get()));
+    istream_right_ = Argus::interface_cast<IEGLOutputStream>(stream_right_);
+    if (!istream_right_) {
       ORIGINATE_ERROR("Failed to create right stream");
     }
 
-    request.reset(iCaptureSession->createRequest());
-    IRequest *iRequest = Argus::interface_cast<IRequest>(request);
-    if (!iRequest) {
+    request.reset(icapture_session_->createRequest());
+
+    IRequest *irequest = Argus::interface_cast<IRequest>(request);
+    if (!irequest) {
       ORIGINATE_ERROR("Failed to create Request");
     }
 
-    iRequest->enableOutputStream(streamLeft.get());
-    iRequest->enableOutputStream(streamRight.get());
+    irequest->enableOutputStream(stream_left_.get());
+    irequest->enableOutputStream(stream_right_.get());
 
-    ISourceSettings *iSourceSettings =
-        Argus::interface_cast<ISourceSettings>(request);
-    if (!iSourceSettings) {
-      ORIGINATE_ERROR("Failed to get source settings request interface");
+    {
+      ISourceSettings *iSourceSettings =
+          Argus::interface_cast<ISourceSettings>(request);
+      if (!iSourceSettings) {
+        ORIGINATE_ERROR("Failed to get source settings request interface");
+      }
+      iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
+      iSourceSettings->setExposureTimeRange(EXPOSURE_TIME_RANGE);
+      iSourceSettings->setGainRange(GAIN_RANGE);
     }
-    iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
-    iSourceSettings->setExposureTimeRange(EXPOSURE_TIME_RANGE);
-    iSourceSettings->setGainRange(GAIN_RANGE);
 
-    // Valid values: DENOISE_MODE_OFF, EDGE_ENHANCE_MODE_FAST,
-    // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setDenoiseStrength(x) for 0 <= x <=
-    // 1
-    IDenoiseSettings *denoiseSettings =
-        Argus::interface_cast<IDenoiseSettings>(request);
-    denoiseSettings->setDenoiseMode(Argus::DENOISE_MODE_OFF);
+    {
+      // Set Deonoise settings
+      //
+      // Valid values: DENOISE_MODE_OFF, EDGE_ENHANCE_MODE_FAST,
+      // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setDenoiseStrength(x) for 0 <= x
+      // <=
+      // 1
+      IDenoiseSettings *denoiseSettings =
+          Argus::interface_cast<IDenoiseSettings>(request);
+      denoiseSettings->setDenoiseMode(Argus::DENOISE_MODE_OFF);
+    }
 
-    // Valid values: EDGE_ENHANCE_MODE_OFF, EDGE_ENHANCE_MODE_FAST,
-    // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setEdgeEnhanceStrength(x) for 0 <=
-    // x <= 1
-    IEdgeEnhanceSettings *edgeEnhanceSettings =
-        Argus::interface_cast<IEdgeEnhanceSettings>(request);
-    edgeEnhanceSettings->setEdgeEnhanceMode(Argus::EDGE_ENHANCE_MODE_OFF);
+    {
+      // Set Edge Enhancement settings
+      //
+      // Valid values: EDGE_ENHANCE_MODE_OFF, EDGE_ENHANCE_MODE_FAST,
+      // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setEdgeEnhanceStrength(x) for 0
+      // <= x <= 1
+      IEdgeEnhanceSettings *edgeEnhanceSettings =
+          Argus::interface_cast<IEdgeEnhanceSettings>(request);
+      edgeEnhanceSettings->setEdgeEnhanceMode(Argus::EDGE_ENHANCE_MODE_OFF);
+    }
 
-    IAutoControlSettings *iAutoControlSettings =
-        Argus::interface_cast<IAutoControlSettings>(
-            iRequest->getAutoControlSettings());
-    iAutoControlSettings->setIspDigitalGainRange(ISP_DIGITAL_GAIN_RANGE);
+    {
+      // Set auto-* settings
+      // Intentionally include most of the settings, just so we know they're
+      // availables even if we're using the default
+      IAutoControlSettings *iAutoControlSettings =
+          Argus::interface_cast<IAutoControlSettings>(
+              irequest->getAutoControlSettings());
+      iAutoControlSettings->setIspDigitalGainRange(ISP_DIGITAL_GAIN_RANGE);
 
-    RCLCPP_INFO(get_logger(), "Stereo consumer");
+      iAutoControlSettings->setAeAntibandingMode(
+          Argus::AE_ANTIBANDING_MODE_OFF);
+
+      // Auto-exposure settings
+      iAutoControlSettings->setAeMode(Argus::AE_MODE_ON);
+      iAutoControlSettings->setAeLock(false);
+
+      // Auto-whitebalance settings
+      iAutoControlSettings->setAwbMode(Argus::AWB_MODE_AUTO);
+      iAutoControlSettings->setAwbLock(false);
+
+      // Should use ColorSaturationBias instead?
+      iAutoControlSettings->setColorSaturationEnable(true);
+      iAutoControlSettings->setColorSaturation(1.0);
+
+      iAutoControlSettings->setExposureCompensation(0.0);
+    }
+
     stereo_consumer_ = std::make_shared<StereoConsumer>(
-        this->get_logger(), iStreamLeft, iStreamRight, left_camera_pub_,
-        right_camera_pub_);
+        this->get_logger(), this->get_clock(), STREAM_SIZE, &g_display,
+        istream_left_, istream_right_, left_camera_pub_, right_camera_pub_);
 
     gpio_threads_.initialize();
     gpio_threads_.waitRunning();
@@ -240,7 +290,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     PROPAGATE_ERROR(stereo_consumer_->waitRunning());
 
     RCLCPP_INFO(get_logger(), "Starting repeat capture requests.");
-    if (iCaptureSession->repeat(request.get()) != Argus::STATUS_OK) {
+    if (icapture_session_->repeat(request.get()) != Argus::STATUS_OK) {
       ORIGINATE_ERROR("Failed to start repeat capture request for preview");
     }
 
@@ -252,16 +302,16 @@ class ArgusStereoSyncNode : public rclcpp::Node {
       right_info_manager_;
 
   ArgusSamples::EGLDisplayHolder g_display;
-  UniqueObj<CaptureSession> captureSession;
-  std::vector<CameraDevice *> cameraDevices;
+  UniqueObj<CaptureSession> capture_session_;
+  std::vector<CameraDevice *> camera_devices_;
 
   UniqueObj<CameraProvider> camera_provider_;
   UniqueObj<Request> request;
   std::shared_ptr<StereoConsumer> stereo_consumer_;
 
-  UniqueObj<OutputStream> streamLeft, streamRight;
-  IEGLOutputStream *iStreamRight, *iStreamLeft;
-  ICaptureSession *iCaptureSession;
+  UniqueObj<OutputStream> stream_left_, stream_right_;
+  IEGLOutputStream *istream_right_, *istream_left_;
+  ICaptureSession *icapture_session_;
 
   V4LDevice video0_, video1_;
 

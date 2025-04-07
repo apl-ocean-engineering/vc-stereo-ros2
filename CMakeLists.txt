@@ -14,12 +14,13 @@ set(ARGUS_DIR /usr/src/jetson_multimedia_api/argus)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake "${CMAKE_MODULE_PATH}")
 
 set(THIS_PACKAGE_INCLUDE_DEPENDS
-  rclcpp
-  rclcpp_components
   ament_cmake
   camera_info_manager
-  image_transport
   generate_parameter_library
+  image_transport
+  imaging_msgs
+  rclcpp
+  rclcpp_components
 )
 
 foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
@@ -40,27 +41,24 @@ pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
 #
 
 
-add_library(utils_lib
-  ${ARGUS_DIR}/samples/utils/ArgusHelpers.cpp
-  ${ARGUS_DIR}/samples/utils/CUDAHelper.cpp
-  ${ARGUS_DIR}/samples/utils/EGLGlobal.cpp
-  ${ARGUS_DIR}/samples/utils/Observed.cpp
-  ${ARGUS_DIR}/samples/utils/Thread.cpp
-  ${ARGUS_DIR}/samples/utils/WindowBase.cpp
-  ${ARGUS_DIR}/samples/utils/gtk/GuiElement.cpp
-  ${ARGUS_DIR}/samples/utils/gtk/Window.cpp
+add_library(nvidia_multimedia_api
+  thirdparty/nvidia_multimedia_api/src/ArgusHelpers.cpp
+  thirdparty/nvidia_multimedia_api/src/CUDAHelper.cpp
+  thirdparty/nvidia_multimedia_api/src/EGLGlobal.cpp
+  thirdparty/nvidia_multimedia_api/src/Observed.cpp
+  thirdparty/nvidia_multimedia_api/src/Thread.cpp
 )
-ament_target_dependencies(utils_lib ${THIS_PACKAGE_INCLUDE_DEPENDS})
+ament_target_dependencies(nvidia_multimedia_api ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-target_link_libraries(utils_lib
+target_link_libraries(nvidia_multimedia_api
   ${GTK3_LIBRARIES}
   ${EGL_LIBRARIES}
   ${X11_LIBRARIES}
 )
 
-target_include_directories(utils_lib
+target_include_directories(nvidia_multimedia_api
   PUBLIC
-  ${ARGUS_DIR}/samples/utils
+  thirdparty/nvidia_multimedia_api/include
   ${ARGUS_DIR}/../include
   PRIVATE
   ${GTK3_INCLUDE_DIRS}
@@ -96,7 +94,7 @@ target_link_libraries(stereo_node
   ${catkin_LIBRARIES}
   ${ARGUS_LIBRARIES}
   cuda
-  utils_lib
+  nvidia_multimedia_api
   stereo_parameters
 )
 
@@ -120,12 +118,18 @@ install(
 # # ament_export_targets(export_${arena_camera_lib} HAS_LIBRARY_TARGET)
 # # ament_export_dependencies(arena_camera_parameters)
 
-install(TARGETS stereo_node
+install(
+  TARGETS stereo_node
   DESTINATION lib/${PROJECT_NAME}
   )
 
 install(
   DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}/
+)
+
+install(
+  DIRECTORY config/calibrations
   DESTINATION share/${PROJECT_NAME}/
 )
 
