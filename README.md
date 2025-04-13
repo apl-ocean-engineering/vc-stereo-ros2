@@ -29,6 +29,7 @@ $ colcon build
 
 This will build the package. To run the stereo  node, type:
 ```sh
+$ source install/setup.bash
 $ ros2 launch vc_stereo_ros2 stereo.launch.xml
 ```
 
