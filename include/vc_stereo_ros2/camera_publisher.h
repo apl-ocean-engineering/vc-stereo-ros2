@@ -31,6 +31,8 @@ class CameraPublisher {
   }
 
   void publish(const sensor_msgs::msg::Image &image) {
+    camera_info_.header.stamp = image.header.stamp;
+    camera_info_.header.frame_id = image.header.frame_id;
     publisher_.publish(image, camera_info_);
   }
 
