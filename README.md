@@ -9,12 +9,10 @@ We are developing on a Jetson Orin Nano development kit running [Jetpack 6.2](ht
 This software is mostly generic, but contains a few customizations specific to our case:
 
 * It contains constants specific to our cameras (sensor size, etc.)
-* We use GPIOs on the Jetson Nano board for external triggering.   This code contains a simple hardware loop for triggering the cameras.
+* We use GPIOs on the Jetson Nano board for external triggering.   This code contains a simple hardware loop for triggering the cameras.  **The driver uses external triggering by default.**
 
 
-[[TOC]]
-
-### Installation
+## Installation
 
 Argus Stereo Sync requires ROS2 and the Jetson Multimedia API.
 
@@ -33,7 +31,17 @@ $ source install/setup.bash
 $ ros2 launch vc_stereo_ros2 stereo.launch.xml
 ```
 
-### License
+## Parameters
+
+The node accepts a number of parameters which control:
+
+* Whether the cameras are triggered internall or via external hardware triggers
+* The camera framerate
+* The camera calibration published through `camera_info`
+
+See the [sample launchfile](launch/stereo.launch.xml) for documentation.
+
+## License
 
 This driver is based on, but signicantly evolved from [NeilKhera/argus_stereo_sync](https://github.com/NeilKhera/argus_stereo_sync) which is itself based on sample code from the Jetson Multimedia API.  It retains the MIT license of that original version.
 
