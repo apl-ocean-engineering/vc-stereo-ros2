@@ -24,3 +24,10 @@ vc_stereo_ros2:
     description: "Camera trigger:  internal or external"
     validation:
       one_of<>: [["internal", "external",]]
+
+  max_exposure_ms:
+    type: double
+    default_value: 10.0
+    description: "Max exposure time in ms"
+    validation:
+      bounds<>: [1, 50]

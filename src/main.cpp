@@ -47,10 +47,6 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
-static const Argus::Range<float> GAIN_RANGE(1, 48);
-static const Argus::Range<float> ISP_DIGITAL_GAIN_RANGE(1, 1);
-// In nanoseconds
-static const Argus::Range<uint64_t> EXPOSURE_TIME_RANGE(44000, 20000000);
 static const Argus::Size2D<uint32_t> STREAM_SIZE(1440, 1080);
 
 class ArgusStereoSyncNode : public rclcpp::Node {
@@ -63,7 +59,10 @@ class ArgusStereoSyncNode : public rclcpp::Node {
         right_info_manager_(this, "right"),
         camera_provider_(CameraProvider::create()),
         video0_("/dev/video0"),
-        video1_("/dev/video1") {}
+        video1_("/dev/video1") {
+    param_listener_ =
+        std::make_shared<ParamListener>(get_node_parameters_interface());
+  }
 
   virtual ~ArgusStereoSyncNode() {
     RCLCPP_INFO(get_logger(), "Starting destructor");
@@ -88,15 +87,15 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Done -- exiting.");
   }
 
-  bool execute(std::shared_ptr<image_transport::ImageTransport> image_transport,
-               std::shared_ptr<vc_stereo_ros2::ParamListener> param_listener) {
-    auto params = param_listener->get_params();
+  bool execute(
+      std::shared_ptr<image_transport::ImageTransport> image_transport) {
+    params_ = param_listener_->get_params();
 
-    int framerate = params.framerate;
+    int framerate = params_.framerate;
     RCLCPP_INFO_STREAM(get_logger(),
                        "Setting frame rate to " << framerate << " fps");
 
-    if (params.trigger_mode == "external") {
+    if (params_.trigger_mode == "external") {
       RCLCPP_INFO(get_logger(), "Configuring cameras for _external_ trigger");
 
       video0_.setTrigger(TriggerType::External);
@@ -123,21 +122,21 @@ class ArgusStereoSyncNode : public rclcpp::Node {
             "right/imaging_metadata", 1));
 
     // Set up camera info for both cameras
-    if (params.left_camera_info.size() > 0) {
-      if (!left_info_manager_.loadCameraInfo(params.left_camera_info)) {
+    if (params_.left_camera_info.size() > 0) {
+      if (!left_info_manager_.loadCameraInfo(params_.left_camera_info)) {
         RCLCPP_FATAL_STREAM(get_logger(),
                             "Unable to load camera LEFT info from \""
-                                << params.left_camera_info << "\"");
+                                << params_.left_camera_info << "\"");
         return false;
       }
       left_camera_pub_->setCameraInfo(left_info_manager_.getCameraInfo());
     }
 
-    if (params.right_camera_info.size() > 0) {
-      if (!right_info_manager_.loadCameraInfo(params.right_camera_info)) {
+    if (params_.right_camera_info.size() > 0) {
+      if (!right_info_manager_.loadCameraInfo(params_.right_camera_info)) {
         RCLCPP_FATAL_STREAM(get_logger(),
                             "Unable to load RIGHT camera info from \""
-                                << params.right_camera_info << "\"");
+                                << params_.right_camera_info << "\"");
         return false;
       }
       right_camera_pub_->setCameraInfo(right_info_manager_.getCameraInfo());
@@ -154,8 +153,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
                 iCameraProvider->getVersion().c_str());
 
     iCameraProvider->getCameraDevices(&camera_devices_);
-    RCLCPP_INFO(get_logger(), "CAMERA DEVICES COUNT: %lu",
-                camera_devices_.size());
+    RCLCPP_INFO(get_logger(), "FOUND %lu CAMERAS", camera_devices_.size());
     if (camera_devices_.size() < 2) {
       ORIGINATE_ERROR("Must have at least 2 sensors available");
     }
@@ -225,8 +223,15 @@ class ArgusStereoSyncNode : public rclcpp::Node {
         ORIGINATE_ERROR("Failed to get source settings request interface");
       }
       iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
-      iSourceSettings->setExposureTimeRange(EXPOSURE_TIME_RANGE);
-      iSourceSettings->setGainRange(GAIN_RANGE);
+
+      const Argus::Range<float> gain_range(1, 48);
+      iSourceSettings->setGainRange(gain_range);
+
+      const uint64_t exp_ns = params_.max_exposure_ms * 1e6;
+      RCLCPP_INFO_STREAM(get_logger(),
+                         "Setting max exposure to " << exp_ns << " ns");
+      const Argus::Range<uint64_t> exposure_time_range(44000, exp_ns);
+      iSourceSettings->setExposureTimeRange(exposure_time_range);
     }
 
     {
@@ -259,6 +264,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
       IAutoControlSettings *iAutoControlSettings =
           Argus::interface_cast<IAutoControlSettings>(
               irequest->getAutoControlSettings());
+
+      const Argus::Range<float> ISP_DIGITAL_GAIN_RANGE(1, 1);
       iAutoControlSettings->setIspDigitalGainRange(ISP_DIGITAL_GAIN_RANGE);
 
       iAutoControlSettings->setAeAntibandingMode(
@@ -294,7 +301,49 @@ class ArgusStereoSyncNode : public rclcpp::Node {
       ORIGINATE_ERROR("Failed to start repeat capture request for preview");
     }
 
+    // param_listener_ is also setting up a callback
+    // are they conflicting?  why can't I get a callback from
+    // it when there's a paramater change?
+    callback_handle_ = this->add_on_set_parameters_callback(std::bind(
+        &ArgusStereoSyncNode::parametersCallback, this, std::placeholders::_1));
+
     return true;
+  }
+
+  rcl_interfaces::msg::SetParametersResult parametersCallback(
+      const std::vector<rclcpp::Parameter> &parameters) {
+    rcl_interfaces::msg::SetParametersResult result;
+    result.successful = true;
+    result.reason = "success";
+
+    // param_listener_->update(parameters);
+    params_ = param_listener_->get_params();
+
+    // Pause streaming
+    icapture_session_->stopRepeat();
+
+    {
+      ISourceSettings *iSourceSettings =
+          Argus::interface_cast<ISourceSettings>(request);
+      if (iSourceSettings) {
+        const uint64_t exp_ns = params_.max_exposure_ms * 1e6;
+        RCLCPP_INFO_STREAM(get_logger(),
+                           "Setting max exposure to " << exp_ns << " ns");
+        const Argus::Range<uint64_t> exposure_time_range(44000, exp_ns);
+        iSourceSettings->setExposureTimeRange(exposure_time_range);
+      } else {
+        result.successful = true;
+        result.reason = "Failed to get source settings request interface";
+      }
+    }
+
+    // Restart streaming in all cases
+    if (icapture_session_->repeat(request.get()) != Argus::STATUS_OK) {
+      RCLCPP_ERROR(get_logger(),
+                   "Failed to start repeat capture request for preview");
+    }
+
+    return result;
   }
 
  protected:
@@ -319,6 +368,10 @@ class ArgusStereoSyncNode : public rclcpp::Node {
       right_camera_pub_;
 
   GpioThreads gpio_threads_;
+
+  OnSetParametersCallbackHandle::SharedPtr callback_handle_;
+  std::shared_ptr<vc_stereo_ros2::ParamListener> param_listener_;
+  vc_stereo_ros2::Params params_;
 };
 
 }  // namespace vc_stereo_ros2
@@ -331,9 +384,7 @@ int main(int argc, char *argv[]) {
   auto image_transport =
       std::make_shared<image_transport::ImageTransport>(node);
 
-  auto param_listener = std::make_shared<vc_stereo_ros2::ParamListener>(node);
-
-  if (!node->execute(image_transport, param_listener)) {
+  if (!node->execute(image_transport)) {
     return -1;
   }
 
