@@ -316,7 +316,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     result.successful = true;
     result.reason = "success";
 
-    // param_listener_->update(parameters);
+    param_listener_->update(parameters);
     params_ = param_listener_->get_params();
 
     // Pause streaming
