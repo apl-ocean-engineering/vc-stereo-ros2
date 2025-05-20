@@ -18,6 +18,11 @@
     -->
     <arg name="framerate" default="10"/>
 
+    <!-- Maximum exposure time, in ms.
+    
+        System will increase exposure value to this limit,
+        then increase gain to maintain exposure.  -->
+    <arg name="max_exposure_ms" default="5.0" />
 
     <!-- These two variable are used to locate camera calibration files stored in
         this repo.  They _are not_ passed to the node.
@@ -48,6 +53,8 @@
 
         <param name="left_camera_info" value="$(var left_camera_info)"/>
         <param name="right_camera_info" value="$(var right_camera_info)"/>
+
+        <param name="max_exposure_ms" value="$(var max_exposure_ms)"/>
 
         <!-- Compressed image transport was causing SIGBUS.  Wha...?
              Disable most image_transports. -->
