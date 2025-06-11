@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 enum class TriggerType { Internal, External };
 
@@ -32,4 +32,4 @@ class V4LDevice {
   int trigger_mode_v4l2_id_;
 };
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

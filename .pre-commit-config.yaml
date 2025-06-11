@@ -18,6 +18,7 @@ repos:
     rev: v20.1.0
     hooks:
     -   id: clang-format
+        exclude: ^thirdparty/.*
         # Respect .clang-format if it exists, otherwise use Google
         args: ["--fallback-style=Google"]
 
@@ -25,7 +26,7 @@ repos:
     rev: 0.8.0
     hooks:
     -   id: cpplint
-        exclude: .cu
+        exclude: ^(.*\.cu|thirdparty/.*)$
         args: ["--filter=-build/include_order,-readability/todo,-whitespace/indent_namespace"]
     -   id: cppcheck
         exclude: .cu

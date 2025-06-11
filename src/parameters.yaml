@@ -1,4 +1,4 @@
-argus_stereo_sync:
+vc_stereo_ros2:
 
   # Camera info params defaults to (empty) -- no camera info
   left_camera_info:
@@ -24,3 +24,29 @@ argus_stereo_sync:
     description: "Camera trigger:  internal or external"
     validation:
       one_of<>: [["internal", "external",]]
+
+  max_exposure_ms:
+    type: double
+    default_value: 10.0
+    description: "Max exposure time in ms"
+    validation:
+      bounds<>: [1, 50]
+
+  awb_lock:
+    type: bool
+    default_value: false
+    description: "Enable auto white balance lock"
+
+  saturation:
+    type: double
+    default_value: 1.0
+    description: "Saturation [0.0 - 1.0]"
+    validation:
+      bounds<>: [0, 2]
+
+  exposure_compensation:
+    type: double
+    default_value: 0.0
+    description: "Exposure compensation in EV stops [-5.0 - 5.0]"
+    validation:
+      bounds<>: [-5,5]

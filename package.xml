@@ -1,18 +1,19 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>argus_stereo_sync</name>
+  <name>vc_stereo_ros2</name>
   <version>2.0.0</version>
 
   <description>ROS2 stereo camera software synchronization through libargus on Nvidia Jetson-powered systems</description>
   <maintainer email="amarburg@uw.edu">Aaron Marburg</maintainer>
 
-  <author email="nkhera@andrew.cmu.edu">Neil Khera</author>
+  <author email="amarburg@uw.edu">Aaron Marburg</author>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>sensor_msgs</depend>
   <depend>camera_info_manager</depend>
+  <depend>imaging_msgs</depend>
 
   <depend>generate_parameter_library</depend>
   <depend>image_transport</depend>

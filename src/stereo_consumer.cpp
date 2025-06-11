@@ -4,29 +4,37 @@
 
 // clang-format off
 // Must come first, do not let this be sorted with the other headers
-#include "argus_stereo_sync/stereo_consumer.h"
+#include "vc_stereo_ros2/stereo_consumer.h"
 // clang-format on
+
+#include <Argus/Argus.h>
+#include <EGLStream/ArgusCaptureMetadata.h>
 
 #include <memory>
 
-#include "CUDAHelper.h"
-#include "EGLGlobal.h"
-#include "Error.h"
-#include "argus_stereo_sync/cuda_frame_acquire.h"
+#include "nvidia_multimedia_api/CUDAHelper.h"
+#include "nvidia_multimedia_api/EGLGlobal.h"
+#include "nvidia_multimedia_api/Error.h"
+#include "vc_stereo_ros2/cuda_frame_acquire.h"
 
 #define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)
 #define CONSUMER_PRINT(...) printf("CONSUMER: " __VA_ARGS__)
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
 using ArgusSamples::getCudaErrorString;
 
 StereoConsumer::StereoConsumer(
-    rclcpp::Logger logger, Argus::IEGLOutputStream *leftStream,
+    rclcpp::Logger logger, const std::shared_ptr<rclcpp::Clock> &clock,
+    const Argus::Size2D<uint32_t> &stream_size,
+    ArgusSamples::EGLDisplayHolder *holder, Argus::IEGLOutputStream *leftStream,
     Argus::IEGLOutputStream *rightStream,
-    const std::shared_ptr<argus_stereo_sync::CameraPublisher> &left_pub,
-    const std::shared_ptr<argus_stereo_sync::CameraPublisher> &right_pub)
+    const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &left_pub,
+    const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &right_pub)
     : logger_(logger),
+      clock_(clock),
+      stream_size_(stream_size),
+      display_(holder),
       m_leftStream(leftStream),
       m_rightStream(rightStream),
       m_cuStreamLeft(nullptr),
@@ -87,10 +95,13 @@ bool StereoConsumer::threadExecute() {
       break;
     }
 
-    CudaFrameAcquire left_acq(m_cuStreamLeft, left_pub_);
-    CudaFrameAcquire right_acq(m_cuStreamRight, right_pub_);
+    CudaFrameAcquire left_acq(m_cuStreamLeft, logger_, display_, m_leftStream,
+                              left_pub_, stream_size_);
+    CudaFrameAcquire right_acq(m_cuStreamRight, logger_, display_,
+                               m_rightStream, right_pub_, stream_size_);
 
-    PROPAGATE_ERROR(left_acq.publish() && right_acq.publish());
+    const auto t = clock_->now();
+    PROPAGATE_ERROR(left_acq.publish(t) && right_acq.publish(t));
   }
 
   RCLCPP_INFO(logger_, "No more frames. Cleaning up.");
@@ -116,4 +127,4 @@ bool StereoConsumer::threadShutdown() {
   return true;
 }
 
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2

@@ -2,7 +2,7 @@
 //
 // Copyright 2025 University of Washington
 
-#include "argus_stereo_sync/v4l_device.h"
+#include "vc_stereo_ros2/v4l_device.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -14,8 +14,9 @@
 #include <iostream>
 #include <string>
 
-namespace argus_stereo_sync {
+namespace vc_stereo_ros2 {
 
+// Convenience functions stolen from online examples and v4l2-ctl source code
 #define IOCTL_TRIES 3
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
@@ -91,6 +92,8 @@ static std::string name2var(const char *name) {
   return s;
 }
 
+//---- -----
+
 V4LDevice::V4LDevice(const std::string &device)
     : device_(device), trigger_mode_v4l2_id_(-1) {
   initializeV4L2Ctrls();
@@ -121,16 +124,15 @@ bool V4LDevice::initializeV4L2Ctrls() {
     auto id_name = name2var(qctrl.name);
 
     if (strncmp(id_name.c_str(), "trigger_mode", 12) == 0) {
-      std::cerr << "Found \"trigger_mode\" at id " << std::hex << qctrl.id
-                << std::endl;
       trigger_mode_v4l2_id_ = qctrl.id;
     }
 
     qctrl.id |= next_fl;
   }
 
-  // For now, we know the relevant controls are in the _ext_ended list,
-  // so don't query these non-extended
+  // For now, we know the relevant controls are in the _extended_ list,
+  // so don't query these non-extended options
+  //
   // if (qctrl.id != next_fl) return;
   // for (id = V4L2_CID_USER_BASE; id < V4L2_CID_LASTP1; id++) {
   //   qctrl.id = id;
@@ -144,12 +146,14 @@ bool V4LDevice::initializeV4L2Ctrls() {
   //   print_control(fd, qctrl, show_menus);
   // }
 
-  // Successfully found all of the ids?
+  // Successfully found all of the ids we need?
   if (trigger_mode_v4l2_id_ > 0) return true;
 
   return false;
 }
 
+// As we need to access more v4l controls, this could be refactored into a more
+// generic setter function
 bool V4LDevice::setTrigger(const TriggerType trigger_type) {
   if (trigger_mode_v4l2_id_ < 0) {
     std::cerr << "Could not find trigger_mode V4L2 control, cannot set trigger"
@@ -163,33 +167,32 @@ bool V4LDevice::setTrigger(const TriggerType trigger_type) {
     return -1;
   }
 
-  struct v4l2_ext_controls extCtrls;
-  CLEAR(extCtrls);
-  extCtrls.ctrl_class = V4L2_CTRL_CLASS_CAMERA;
-  extCtrls.which = V4L2_CTRL_WHICH_CUR_VAL;
-  extCtrls.count = 1;
+  struct v4l2_ext_controls ext_ctrls;
+  CLEAR(ext_ctrls);
+  ext_ctrls.ctrl_class = V4L2_CTRL_CLASS_CAMERA;
+  ext_ctrls.which = V4L2_CTRL_WHICH_CUR_VAL;
+  ext_ctrls.count = 1;
 
-  struct v4l2_ext_control extCtrl;
-  CLEAR(extCtrl);
-  extCtrls.controls = &extCtrl;
+  struct v4l2_ext_control ext_ctrl;
+  CLEAR(ext_ctrl);
+  ext_ctrls.controls = &ext_ctrl;
 
-  extCtrl.id = trigger_mode_v4l2_id_;
-  extCtrl.size = sizeof(int);
+  ext_ctrl.id = trigger_mode_v4l2_id_;
+  ext_ctrl.size = sizeof(int);
 
   if (trigger_type == TriggerType::External) {
-    extCtrl.value = 1;
+    ext_ctrl.value = 1;
   } else {
-    extCtrl.value = 0;
+    ext_ctrl.value = 0;
   }
 
-  std::cout << "Setting trigger mode to " << extCtrl.value << std::endl;
+  std::cout << "Setting trigger mode to " << ext_ctrl.value << std::endl;
 
-  if (ioctl(fd, VIDIOC_S_EXT_CTRLS, &extCtrls) != 0) {
+  if (ioctl(fd, VIDIOC_S_EXT_CTRLS, &ext_ctrls) != 0) {
     std::cout << "Failed to set trigger"
               << "\nerror (" << errno << "): " << strerror(errno) << std::endl;
 
     close(fd);
-
     return false;
   }
 
@@ -197,30 +200,4 @@ bool V4LDevice::setTrigger(const TriggerType trigger_type) {
   return true;
 }
 
-// bool V4LDevice::initializeV4L2Ctrls(uint32_t id, int val) {
-//   int fd = open(device_.c_str(), O_RDWR | O_NONBLOCK);
-//   if (fd == -1) {
-//     std::cout << "Failed to open the camera" << std::endl;
-//     return -1;
-//   }
-
-//   struct v4l2_control ctrl;
-//   CLEAR(ctrl);
-
-//   ctrl.id = id;
-//   ctrl.value = val;
-//   if (xioctl(fd, VIDIOC_S_CTRL, &ctrl) == -1) {
-//     std::cout << "Failed to set ctrl with id " << id << " to value " << val
-//               << "\nerror (" << errno << "): " << strerror(errno) <<
-//               std::endl;
-
-//     close(fd);
-
-//     return false;
-//   }
-
-//   close(fd);
-//   return true;
-// }
-
-}  // namespace argus_stereo_sync
+}  // namespace vc_stereo_ros2
