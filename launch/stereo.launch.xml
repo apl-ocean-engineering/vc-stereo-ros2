@@ -19,30 +19,17 @@
     <arg name="framerate" default="10"/>
 
     <!-- Maximum exposure time, in ms.
-    
+
         System will increase exposure value to this limit,
         then increase gain to maintain exposure.  -->
     <arg name="max_exposure_ms" default="5.0" />
 
-    <!-- These two variable are used to locate camera calibration files stored in
-        this repo.  They _are not_ passed to the node.
-
-        "hostname" is the name for this unit
-        "environment" is used to specify different calibrations, for example "in_water" versus "in_air"
-                    but could also be used for "experimental" "fisheye" etc
-        -->
-    <arg name="hostname" default="clyde"/>
-    <arg name="environment" default="in_water"/>
-
     <!-- URLs to the camera info files (in ROS YAML format).  The node will run
-         if these are not set (or are invalid) but will not publish camera_info.
 
-         The default value is synthesized from the "hostname" and "environment"
-         variables to find files _in the config/calibrations/ path in this repository:
-
-         (this_repo)/config/calibrations/(hostname)/(environment)/{left,right}_stereo_params.yaml  -->
-    <arg name="left_camera_info" default="file://$(find-pkg-share vc_stereo_ros2)/calibrations/$(var hostname)/$(var environment)/left_stereo_params.yaml"/>
-    <arg name="right_camera_info" default="file://$(find-pkg-share vc_stereo_ros2)/calibrations/$(var hostname)/$(var environment)/right_stereo_params.yaml"/>
+        This uses sample files provided with this repo.
+      -->
+    <arg name="left_camera_info" default="file://$(find-pkg-share vc_stereo_ros2)/calibrations/left_stereo_params.yaml"/>
+    <arg name="right_camera_info" default="file://$(find-pkg-share vc_stereo_ros2)/calibrations/right_stereo_params.yaml"/>
 
 
     <node pkg="vc_stereo_ros2" exec="stereo_node" name="stereo_node"
