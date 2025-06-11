@@ -1,0 +1,37 @@
+name: ROS Industrial CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  industrial-ci:
+    name: Run Industrial CI
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Log into registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run ROS Industrial CI
+        uses: ros-industrial/industrial_ci@master
+        env:
+          BEFORE_INIT: 'sh .github/workflows/install_deps.sh'
+          DOCKER_IMAGE: dustynv/ros:humble-ros-base-l4t-r36.3.0
+          CXXFLAGS: >-
+            -Wall -Wextra -Wpedantic -Wwrite-strings -Wunreachable-code -Wpointer-arith -Wredundant-decls
