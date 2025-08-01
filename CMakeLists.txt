@@ -71,6 +71,7 @@ target_link_libraries(
       X11::X11
       PkgConfig::GTK
       PkgConfig::EGL
+      ${ARGUS_LIBRARIES}
 )
 
 #
@@ -110,8 +111,8 @@ target_link_libraries(stereo_driver_component
 
 rclcpp_components_register_node(
     stereo_driver_component
-    PLUGIN "vc_stereo_ros2::ArgusStereoSyncNode"
-    EXECUTABLE stereo_driver
+    PLUGIN "vc_stereo_ros2::SyncedStereoNode"
+    EXECUTABLE stereo_node
 )
 
 # == Install ==
@@ -125,7 +126,7 @@ install(
 ament_export_targets(export_stereo_driver_component nvidia_multimedia_api stereo_parameters)
 ament_export_dependencies(stereo_parameters nvidia_multimedia_api)
 
-install(TARGETS stereo_parameters
+install(TARGETS stereo_parameters 
         EXPORT stereo_parameters
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

@@ -13,13 +13,15 @@
 #include <string>
 #include <vector>
 
-#include "camera_info_manager/camera_info_manager.hpp"
-#include "image_transport/camera_publisher.hpp"
-#include "imaging_msgs/msg/imaging_metadata.hpp"
+#include <camera_info_manager/camera_info_manager.hpp>
+#include <image_transport/camera_publisher.hpp>
+#include <imaging_msgs/msg/imaging_metadata.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
+#include <sensor_msgs/msg/image.hpp>
+
 #include "nvidia_multimedia_api/EGLGlobal.h"
 #include "nvidia_multimedia_api/Error.h"
-#include "sensor_msgs/msg/camera_info.hpp"
-#include "sensor_msgs/msg/image.hpp"
+
 #include "vc_stereo_ros2/camera_publisher.h"
 #include "vc_stereo_ros2/gpio_trigger_thread.h"
 #include "vc_stereo_ros2/stereo_consumer.h"
@@ -47,12 +49,13 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
+// Image size is currently fixed, because I'm lazy
 static const Argus::Size2D<uint32_t> STREAM_SIZE(1440, 1080);
 
-class ArgusStereoSyncNode : public rclcpp::Node {
+class SyncedStereoNode : public rclcpp::Node {
  public:
-  ArgusStereoSyncNode(const rclcpp::NodeOptions & options)
-      : Node("vc_stereo", options),
+  SyncedStereoNode(const rclcpp::NodeOptions & options)
+      : Node("synced_stereo", options),
         g_display(true),
         left_info_manager_(this, "left"),
         right_info_manager_(this, "right"),
@@ -65,7 +68,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
         execute();
   }
 
-  virtual ~ArgusStereoSyncNode() {
+  virtual ~SyncedStereoNode() {
     RCLCPP_INFO(get_logger(), "Starting destructor");
 
     auto icapturesession =
@@ -313,7 +316,7 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     // are they conflicting?  why can't I get a callback from
     // it when there's a paramater change?
     callback_handle_ = this->add_on_set_parameters_callback(std::bind(
-        &ArgusStereoSyncNode::parametersCallback, this, std::placeholders::_1));
+        &SyncedStereoNode::parametersCallback, this, std::placeholders::_1));
 
     return true;
   }
@@ -421,26 +424,5 @@ class ArgusStereoSyncNode : public rclcpp::Node {
 
 }  // namespace vc_stereo_ros2
 
-// int main(int argc, char *argv[]) {
-//   rclcpp::init(argc, argv);
-//   auto node = std::make_shared<vc_stereo_ros2::ArgusStereoSyncNode>(
-//       "vc_stereo_ros2", rclcpp::NodeOptions());
-
-//   auto image_transport =
-//       std::make_shared<image_transport::ImageTransport>(node);
-
-//   if (!node->execute(image_transport)) {
-//     return -1;
-//   }
-
-//   rclcpp::spin(node);
-
-//   node.reset();
-
-//   rclcpp::shutdown();
-
-//   return 0;
-// }
-
 #include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE(vc_stereo_ros2::ArgusStereoSyncNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(vc_stereo_ros2::SyncedStereoNode)
