@@ -18,10 +18,10 @@ class CameraPublisher {
  public:
   CameraPublisher(
       const std::string &name,
-      std::shared_ptr<image_transport::ImageTransport> image_transport,
+      image_transport::CameraPublisher camera_pub,
       const rclcpp::Publisher<imaging_msgs::msg::ImagingMetadata>::SharedPtr
           &metadata_pub)
-      : publisher_(image_transport->advertiseCamera(name + "/image_raw", 1)),
+      : publisher_(camera_pub),
         metadata_pub_(metadata_pub) {}
 
   ~CameraPublisher() {}

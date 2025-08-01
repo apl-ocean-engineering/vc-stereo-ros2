@@ -1,6 +1,11 @@
 
-cmake_minimum_required(VERSION 3.3)
-project(vc_stereo_ros2)
+cmake_minimum_required(VERSION 3.10)
+project(vc_stereo_ros2
+        LANGUAGES CUDA CXX)
+
+set(CMAKE_CUDA_ARCHITECTURES "53")
+
+find_package(CUDAToolkit)
 
 if(NOT CMAKE_CXX_STANDARD)
  set(CMAKE_CXX_STANDARD 17)
@@ -10,10 +15,12 @@ endif()
 #  add_compile_options(-Wall -Wextra -Wpedantic)
 #endif()
 
+# Location set by the `nvidia-l4t-jetson-multimedia-api` apt package
 set(ARGUS_DIR /usr/src/jetson_multimedia_api/argus)
+
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake "${CMAKE_MODULE_PATH}")
 
-set(THIS_PACKAGE_INCLUDE_DEPENDS
+set(AMENT_DEPENDS
   ament_cmake
   camera_info_manager
   generate_parameter_library
@@ -23,79 +30,88 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rclcpp_components
 )
 
-foreach(Dependency IN ITEMS ${THIS_PACKAGE_INCLUDE_DEPENDS})
+foreach(Dependency IN ITEMS ${AMENT_DEPENDS})
   find_package(${Dependency} REQUIRED)
 endforeach()
 
 find_package(EGL REQUIRED)
-find_package(CUDA REQUIRED)
 find_package(Argus REQUIRED)
 find_package(X11 REQUIRED)
 
-
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)
+pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl)
+
 
 # == Build ==
 #
 #
 
-
-add_library(nvidia_multimedia_api
+add_library(nvidia_multimedia_api SHARED
   thirdparty/nvidia_multimedia_api/src/ArgusHelpers.cpp
   thirdparty/nvidia_multimedia_api/src/CUDAHelper.cpp
   thirdparty/nvidia_multimedia_api/src/EGLGlobal.cpp
   thirdparty/nvidia_multimedia_api/src/Observed.cpp
   thirdparty/nvidia_multimedia_api/src/Thread.cpp
 )
-ament_target_dependencies(nvidia_multimedia_api ${THIS_PACKAGE_INCLUDE_DEPENDS})
 
-target_link_libraries(nvidia_multimedia_api
-  ${GTK3_LIBRARIES}
-  ${EGL_LIBRARIES}
-  ${X11_LIBRARIES}
+target_include_directories(
+    nvidia_multimedia_api
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nvidia_multimedia_api/include>"
+        "$<BUILD_INTERFACE:${ARGUS_DIR}/../include/>"
+        "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
 
-target_include_directories(nvidia_multimedia_api
+target_link_libraries(
+  nvidia_multimedia_api
   PUBLIC
-  thirdparty/nvidia_multimedia_api/include
-  ${ARGUS_DIR}/../include
-  PRIVATE
-  ${GTK3_INCLUDE_DIRS}
-  ${EGL_INCLUDE_DIRS}
+      CUDA::cudart
+      X11::X11
+      PkgConfig::GTK
+      PkgConfig::EGL
 )
 
 #
 #
 
 generate_parameter_library(
-  stereo_parameters # cmake target name for the parameter library
-  src/parameters.yaml # path to input yaml file
+  stereo_parameters    # cmake target name for the parameter library
+  src/parameters.yaml  # path to input yaml file
 )
 
-cuda_add_executable(stereo_node
+add_library(stereo_driver_component SHARED 
     src/convert.cu
     src/cuda_frame_acquire.cpp
     src/gpio_trigger_thread.cpp
-    src/main.cpp
+    src/stereo_node.cpp
     src/stereo_consumer.cpp
     src/v4l_device.cpp
 )
 
-target_include_directories(stereo_node
-  PUBLIC
-  ${ARGUS_INCLUDE_DIR}
-  ${CUDA_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
+target_include_directories(
+    stereo_driver_component
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+        "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
 
-target_link_libraries(stereo_node
-  ${catkin_LIBRARIES}
-  ${ARGUS_LIBRARIES}
-  cuda
-  nvidia_multimedia_api
-  stereo_parameters
+target_link_libraries(stereo_driver_component
+  PUBLIC
+        camera_info_manager::camera_info_manager
+        image_transport::image_transport
+        ${imaging_msgs_TARGETS}
+        rclcpp::rclcpp
+        rclcpp_components::component
+        nvidia_multimedia_api
+        stereo_parameters
+)
+
+rclcpp_components_register_node(
+    stereo_driver_component
+    PLUGIN "vc_stereo_ros2::ArgusStereoSyncNode"
+    EXECUTABLE stereo_driver
 )
 
 # == Install ==
@@ -106,30 +122,32 @@ install(
   DESTINATION include
 )
 
-# # Installation of the library has an unexpected dependency on
-# # "arena_camera_parameters".   Resolve if downstream packages
-# # ever want to use the arena_camera library.
-# install(
-#   TARGETS ${arena_camera_lib}
-# #  EXPORT export_${PROJECT_NAME}
-#   LIBRARY DESTINATION lib
-#   ARCHIVE DESTINATION lib
-# )
-# # ament_export_targets(export_${arena_camera_lib} HAS_LIBRARY_TARGET)
-# # ament_export_dependencies(arena_camera_parameters)
+ament_export_targets(export_stereo_driver_component nvidia_multimedia_api stereo_parameters)
+ament_export_dependencies(stereo_parameters nvidia_multimedia_api)
 
-install(
-  TARGETS stereo_node
-  DESTINATION lib/${PROJECT_NAME}
-  )
+install(TARGETS stereo_parameters
+        EXPORT stereo_parameters
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
 
-install(
-  DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}/
+install(TARGETS nvidia_multimedia_api
+        EXPORT nvidia_multimedia_api
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+)
+
+install(TARGETS stereo_driver_component
+        EXPORT export_stereo_driver_component
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
 )
 
 install(
-  DIRECTORY config/calibrations
+  DIRECTORY launch config/calibrations
   DESTINATION share/${PROJECT_NAME}/
 )
 

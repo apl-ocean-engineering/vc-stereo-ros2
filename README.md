@@ -8,7 +8,7 @@ We are developing on a Jetson Orin Nano development kit running [Jetpack 6.2](ht
 
 This software is mostly generic, but contains a few customizations specific to our case:
 
-* It contains constants specific to our cameras (sensor size, etc.)
+* It contains constants specific to our [Vision Components](https://www.mipi-modules.com/en/mipi-compatible-processor-boards/nvidia/) camera modules (image size, etc).
 * We use GPIOs on the Jetson Nano board for external triggering.   This code contains a simple hardware loop for triggering the cameras.  **The driver uses external triggering by default.**
 
 

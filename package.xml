@@ -15,13 +15,15 @@
   <depend>camera_info_manager</depend>
   <depend>imaging_msgs</depend>
 
+  <build_depend>rclcpp_components</build_depend>
+  <build_depend>rclcpp</build_depend>
+
   <depend>generate_parameter_library</depend>
   <depend>image_transport</depend>
 
-  <depend>rclcpp_components</depend>
-  <depend>rclcpp</depend>
-
+  <exec_depend>rclcpp</exec_depend>
   <exec_depend>ros2launch</exec_depend>
+  <exec_depend>rclcpp_components</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

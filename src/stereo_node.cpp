@@ -51,9 +51,8 @@ static const Argus::Size2D<uint32_t> STREAM_SIZE(1440, 1080);
 
 class ArgusStereoSyncNode : public rclcpp::Node {
  public:
-  ArgusStereoSyncNode(const std::string &node_name,
-                      const rclcpp::NodeOptions &options)
-      : Node(node_name, options),
+  ArgusStereoSyncNode(const rclcpp::NodeOptions & options)
+      : Node("vc_stereo", options),
         g_display(true),
         left_info_manager_(this, "left"),
         right_info_manager_(this, "right"),
@@ -62,6 +61,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
         video1_("/dev/video1") {
     param_listener_ =
         std::make_shared<ParamListener>(get_node_parameters_interface());
+
+        execute();
   }
 
   virtual ~ArgusStereoSyncNode() {
@@ -91,8 +92,8 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Done -- exiting.");
   }
 
-  bool execute(
-      std::shared_ptr<image_transport::ImageTransport> image_transport) {
+  bool execute() {
+    
     auto params = param_listener_->get_params();
 
     int framerate = params.framerate;
@@ -117,11 +118,13 @@ class ArgusStereoSyncNode : public rclcpp::Node {
     }
 
     left_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        "left", image_transport,
+        "left",
+        image_transport::create_camera_publisher(this, "left/image_raw"),
         this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
             "left/imaging_metadata", 1));
     right_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        "right", image_transport,
+        "right",
+        image_transport::create_camera_publisher(this, "right/image_raw"),
         this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
             "right/imaging_metadata", 1));
 
@@ -418,23 +421,26 @@ class ArgusStereoSyncNode : public rclcpp::Node {
 
 }  // namespace vc_stereo_ros2
 
-int main(int argc, char *argv[]) {
-  rclcpp::init(argc, argv);
-  auto node = std::make_shared<vc_stereo_ros2::ArgusStereoSyncNode>(
-      "vc_stereo_ros2", rclcpp::NodeOptions());
+// int main(int argc, char *argv[]) {
+//   rclcpp::init(argc, argv);
+//   auto node = std::make_shared<vc_stereo_ros2::ArgusStereoSyncNode>(
+//       "vc_stereo_ros2", rclcpp::NodeOptions());
 
-  auto image_transport =
-      std::make_shared<image_transport::ImageTransport>(node);
+//   auto image_transport =
+//       std::make_shared<image_transport::ImageTransport>(node);
 
-  if (!node->execute(image_transport)) {
-    return -1;
-  }
+//   if (!node->execute(image_transport)) {
+//     return -1;
+//   }
 
-  rclcpp::spin(node);
+//   rclcpp::spin(node);
 
-  node.reset();
+//   node.reset();
 
-  rclcpp::shutdown();
+//   rclcpp::shutdown();
 
-  return 0;
-}
+//   return 0;
+// }
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(vc_stereo_ros2::ArgusStereoSyncNode)
