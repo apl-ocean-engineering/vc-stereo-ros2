@@ -112,13 +112,13 @@ bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
   sensor_msgs::fillImage(output, sensor_msgs::image_encodings::BGR8,
                          m_frame.height, m_frame.width, 3 * m_frame.width,
                          reinterpret_cast<void*>(oBuffer_));
-  pub_->publish(output);
 
   imaging_msgs::msg::ImagingMetadata meta_msg;
   meta_msg.header.stamp = output.header.stamp;
   meta_msg.exposure_us = exposure_ns_ / 1e3;
   meta_msg.gain = analog_gain_;
-  pub_->publish_metadata(meta_msg);
+
+  pub_->publish(output, meta_msg);
 
   return true;
 }

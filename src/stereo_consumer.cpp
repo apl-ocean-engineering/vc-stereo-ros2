@@ -17,9 +17,6 @@
 #include "nvidia_multimedia_api/Error.h"
 #include "vc_stereo_ros2/cuda_frame_acquire.h"
 
-#define PRODUCER_PRINT(...) printf("PRODUCER: " __VA_ARGS__)
-#define CONSUMER_PRINT(...) printf("CONSUMER: " __VA_ARGS__)
-
 namespace vc_stereo_ros2 {
 
 using ArgusSamples::getCudaErrorString;

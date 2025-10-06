@@ -16,12 +16,10 @@
 
 namespace vc_stereo_ros2 {
 
-// Convenience functions stolen from online examples and v4l2-ctl source code
-#define IOCTL_TRIES 3
-#define CLEAR(x) memset(&(x), 0, sizeof(x))
-
 static int xioctl(int fd, int request, void *arg) {
   int r;
+
+  const int IOCTL_TRIES = 3;
   int tries = IOCTL_TRIES;
 
   do {
@@ -75,6 +73,7 @@ static int query_ext_ctrl_ioctl(int fd, struct v4l2_query_ext_ctrl *qctrl) {
   return rc;
 }
 
+// V4L names are strings with spaces replaced underscores
 static std::string name2var(const char *name) {
   std::string s;
   int add_underscore = 0;
@@ -92,25 +91,19 @@ static std::string name2var(const char *name) {
   return s;
 }
 
-//---- -----
+//===================================================================
 
-V4LDevice::V4LDevice(const std::string &device)
-    : device_(device), trigger_mode_v4l2_id_(-1) {
-  initializeV4L2Ctrls();
+V4LDevice::V4LDevice(const std::string &devnode)
+    : device_(devnode), trigger_mode_v4l2_id_(-1) {
+  initializeV4L2CtrlIds();
 }
 
-V4LDevice::~V4LDevice() {}
-
-bool V4LDevice::initializeV4L2Ctrls() {
-  std::cout << "Querying controls for " << device_ << std::endl;
-
-  int fd = open(device_.c_str(), O_RDWR | O_NONBLOCK);
+bool V4LDevice::initializeV4L2CtrlIds() {
+  auto fd = open(device_.c_str(), O_RDWR | O_NONBLOCK);
   if (fd == -1) {
-    std::cout << "Failed to open the camera" << std::endl;
+    std::cerr << "Failed to open the camera" << std::endl;
     return false;
   }
-
-  const int show_menus = 0;
 
   const unsigned next_fl =
       V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
@@ -120,7 +113,6 @@ bool V4LDevice::initializeV4L2Ctrls() {
   memset(&qctrl, 0, sizeof(qctrl));
   qctrl.id = next_fl;
   while (query_ext_ctrl_ioctl(fd, &qctrl) == 0) {
-    // print_control(fd, qctrl, show_menus);
     auto id_name = name2var(qctrl.name);
 
     if (strncmp(id_name.c_str(), "trigger_mode", 12) == 0) {
@@ -130,23 +122,7 @@ bool V4LDevice::initializeV4L2Ctrls() {
     qctrl.id |= next_fl;
   }
 
-  // For now, we know the relevant controls are in the _extended_ list,
-  // so don't query these non-extended options
-  //
-  // if (qctrl.id != next_fl) return;
-  // for (id = V4L2_CID_USER_BASE; id < V4L2_CID_LASTP1; id++) {
-  //   qctrl.id = id;
-  //   if (query_ext_ctrl_ioctl(fd, qctrl) == 0)
-  //     print_control(fd, qctrl, show_menus);
-  // }
-
-  // for (qctrl.id = V4L2_CID_PRIVATE_BASE; query_ext_ctrl_ioctl(fd, qctrl) ==
-  // 0;
-  //      qctrl.id++) {
-  //   print_control(fd, qctrl, show_menus);
-  // }
-
-  // Successfully found all of the ids we need?
+  // Have we successfully found all of the ids we need?
   if (trigger_mode_v4l2_id_ > 0) return true;
 
   return false;
@@ -168,13 +144,13 @@ bool V4LDevice::setTrigger(const TriggerType trigger_type) {
   }
 
   struct v4l2_ext_controls ext_ctrls;
-  CLEAR(ext_ctrls);
+  memset(&ext_ctrls, 0, sizeof(struct v4l2_ext_controls));
   ext_ctrls.ctrl_class = V4L2_CTRL_CLASS_CAMERA;
   ext_ctrls.which = V4L2_CTRL_WHICH_CUR_VAL;
   ext_ctrls.count = 1;
 
   struct v4l2_ext_control ext_ctrl;
-  CLEAR(ext_ctrl);
+  memset(&ext_ctrl, 0, sizeof(struct v4l2_ext_control));
   ext_ctrls.controls = &ext_ctrl;
 
   ext_ctrl.id = trigger_mode_v4l2_id_;
@@ -186,10 +162,8 @@ bool V4LDevice::setTrigger(const TriggerType trigger_type) {
     ext_ctrl.value = 0;
   }
 
-  std::cout << "Setting trigger mode to " << ext_ctrl.value << std::endl;
-
   if (ioctl(fd, VIDIOC_S_EXT_CTRLS, &ext_ctrls) != 0) {
-    std::cout << "Failed to set trigger"
+    std::cerr << "Failed to set trigger"
               << "\nerror (" << errno << "): " << strerror(errno) << std::endl;
 
     close(fd);

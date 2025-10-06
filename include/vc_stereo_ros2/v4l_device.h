@@ -10,23 +10,33 @@
 
 namespace vc_stereo_ros2 {
 
-enum class TriggerType { Internal, External };
+enum class TriggerType {
+  Internal,  // Internally trigger, free-running
+  External   // Externally triggerd
+};
 
-/// Very basic wrapper for interacting with the V4L2 ioctls for the cameras
-///
+/// Rudimentary wrapper for interacting with the V4L2 ioctls for the cameras
 ///
 class V4LDevice {
  public:
-  explicit V4LDevice(const std::string &device);
-  ~V4LDevice();
+  V4LDevice() = delete;
+  V4LDevice(const V4LDevice &) = delete;
+  explicit V4LDevice(const std::string &devnode);
 
+  ~V4LDevice() {}
+
+  /// Query the list of ioctl ids to cache the ids we use (trigger_mode, etc)
+  ///
+  /// \return True if able to initialize all control ID, false otherwise
   bool setTrigger(const TriggerType trigger_type);
 
  protected:
   /// Query the list of ioctl ids to find the ids we use (trigger_mode, etc)
   ///
-  bool initializeV4L2Ctrls();
+  /// \return True if able to initialize all control ID, false otherwise
+  bool initializeV4L2CtrlIds();
 
+ private:
   std::string device_;
 
   int trigger_mode_v4l2_id_;

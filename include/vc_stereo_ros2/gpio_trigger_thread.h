@@ -49,7 +49,7 @@ class GpioTriggerThread : public ArgusSamples::Thread {
 
 class GpioThreads : public ArgusSamples::Thread {
  public:
-  explicit GpioThreads(uint32_t initial_period_ms = 0);
+  explicit GpioThreads(const std::vector<GpioConfig> &configs);
   ~GpioThreads();
 
   // \todo Need to add code to _stop_ the timer if period is set to 0
@@ -61,6 +61,7 @@ class GpioThreads : public ArgusSamples::Thread {
   bool threadExecute() override;
   bool threadShutdown() override { return true; }
 
+  const std::vector<GpioConfig> gpio_configs_;
   std::vector<std::shared_ptr<GpioTriggerThread> > gpio_threads_;
   std::mutex timer_mutex_;
   int timer_;

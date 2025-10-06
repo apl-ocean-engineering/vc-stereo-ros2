@@ -17,7 +17,6 @@ endif()
 
 # Location set by the `nvidia-l4t-jetson-multimedia-api` apt package
 set(ARGUS_DIR /usr/src/jetson_multimedia_api/argus)
-
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake "${CMAKE_MODULE_PATH}")
 
 set(AMENT_DEPENDS
@@ -51,7 +50,6 @@ add_library(nvidia_multimedia_api SHARED
   thirdparty/nvidia_multimedia_api/src/ArgusHelpers.cpp
   thirdparty/nvidia_multimedia_api/src/CUDAHelper.cpp
   thirdparty/nvidia_multimedia_api/src/EGLGlobal.cpp
-  thirdparty/nvidia_multimedia_api/src/Observed.cpp
   thirdparty/nvidia_multimedia_api/src/Thread.cpp
 )
 
@@ -82,7 +80,7 @@ generate_parameter_library(
   src/parameters.yaml  # path to input yaml file
 )
 
-add_library(stereo_driver_component SHARED 
+add_library(stereo_driver_component SHARED
     src/convert.cu
     src/cuda_frame_acquire.cpp
     src/gpio_trigger_thread.cpp
@@ -126,7 +124,7 @@ install(
 ament_export_targets(export_stereo_driver_component nvidia_multimedia_api stereo_parameters)
 ament_export_dependencies(stereo_parameters nvidia_multimedia_api)
 
-install(TARGETS stereo_parameters 
+install(TARGETS stereo_parameters
         EXPORT stereo_parameters
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

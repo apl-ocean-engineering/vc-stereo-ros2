@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <memory>
+#include <vector>
 
 namespace vc_stereo_ros2 {
 
@@ -74,8 +75,11 @@ void GpioTriggerThread::setGpio(bool enable) {
   }
 }
 
-GpioThreads::GpioThreads(uint32_t initial_period_ms)
-    : cond_(std::make_shared<MutexCondition>()),
+//==============================================================
+
+GpioThreads::GpioThreads(const std::vector<GpioConfig> &configs)
+    : gpio_configs_(configs),
+      cond_(std::make_shared<MutexCondition>()),
       timer_(timerfd_create(CLOCK_MONOTONIC, 0)),
       timer_mutex_(),
       period_ms_(0) {}
@@ -85,14 +89,13 @@ GpioThreads::~GpioThreads() {}
 // \todo Need to add code to _stop_ the timer if period is 0
 void GpioThreads::setPeriodMs(uint32_t period_ms) {
   period_ms_ = period_ms;
-
   setTimer();
 }
 
 void GpioThreads::setTimer() {
   std::lock_guard<std::mutex> guard(timer_mutex_);
-  std::cerr << "Configuring TriggerLoop with " << std::dec << period_ms_
-            << " ms delay" << std::endl;
+  // std::cerr << "Configuring TriggerLoop with " << std::dec << period_ms_
+  //           << " ms period" << std::endl;
 
   struct itimerspec itval;
 
@@ -108,11 +111,7 @@ void GpioThreads::setTimer() {
 }
 
 bool GpioThreads::threadInitialize() {
-  // Fixed values for the Jetson Nano dev kit
-  std::array<GpioConfig, 2> gpio_devices = {GpioConfig("/dev/gpiochip0", 49),
-                                            GpioConfig("/dev/gpiochip0", 138)};
-
-  for (const auto gpio_device : gpio_devices) {
+  for (const auto gpio_device : gpio_configs_) {
     auto gpio_trig = std::make_shared<GpioTriggerThread>(cond_);
 
     if (!gpio_trig->configure(gpio_device)) {
@@ -120,9 +119,6 @@ bool GpioThreads::threadInitialize() {
                 << " line " << gpio_device.pin << std::endl;
       continue;
     }
-
-    std::cerr << " Configured trigger for " << gpio_device.device << ":"
-              << gpio_device.pin << std::endl;
     gpio_threads_.push_back(gpio_trig);
 
     if (!gpio_trig->initialize()) {
