@@ -1,4 +1,4 @@
-vc_stereo_ros2:
+vc_argus_ros2:
 
   # Camera info params defaults to (empty) -- no camera info
   left_camera_info:

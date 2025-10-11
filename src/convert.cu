@@ -4,7 +4,7 @@
 
 #include <stdio.h>
 
-#include "vc_stereo_ros2/convert.h"
+#include "vc_argus_ros2/convert.h"
 
 __device__ inline uint8_t clamp(float val, float mn, float mx) {
   return (uint8_t)((val >= mn) ? ((val <= mx) ? val : mx) : mn);

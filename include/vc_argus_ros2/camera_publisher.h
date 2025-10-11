@@ -12,7 +12,7 @@
 
 #include "imaging_msgs/msg/imaging_metadata.hpp"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 // Extends the idea of image_transport::CameraPublisher,
 // publishing an image, a cached camera_info, and imaging_metadata
@@ -47,4 +47,4 @@ class CameraPublisher {
   sensor_msgs::msg::CameraInfo camera_info_;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

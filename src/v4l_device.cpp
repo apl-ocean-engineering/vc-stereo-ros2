@@ -2,7 +2,7 @@
 //
 // Copyright 2025 University of Washington
 
-#include "vc_stereo_ros2/v4l_device.h"
+#include "vc_argus_ros2/v4l_device.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string>
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 static int xioctl(int fd, int request, void *arg) {
   int r;
@@ -174,4 +174,4 @@ bool V4LDevice::setTrigger(const TriggerType trigger_type) {
   return true;
 }
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

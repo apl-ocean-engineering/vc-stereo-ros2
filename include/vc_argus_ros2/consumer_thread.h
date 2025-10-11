@@ -8,7 +8,7 @@
 // rclcpp must be included before anything that might include X11.h
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "vc_stereo_ros2/camera_publisher.h"
+#include "vc_argus_ros2/camera_publisher.h"
 // clang-format on
 
 #include <Argus/Argus.h>
@@ -20,19 +20,18 @@
 #include "nvidia_multimedia_api/EGLGlobal.h"
 #include "nvidia_multimedia_api/Thread.h"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
-class StereoConsumer : public ArgusSamples::Thread {
+class ConsumerThread : public ArgusSamples::Thread {
  public:
-  explicit StereoConsumer(
+  explicit ConsumerThread(
       rclcpp::Logger logger, const std::shared_ptr<rclcpp::Clock> &clock,
       const Argus::Size2D<uint32_t> &stream_size,
       ArgusSamples::EGLDisplayHolder *holder,
-      Argus::IEGLOutputStream *leftStream, Argus::IEGLOutputStream *rightStream,
-      const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &left_pub,
-      const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &right_pub);
+      Argus::IEGLOutputStream *output_stream,
+      const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub);
 
-  ~StereoConsumer();
+  ~ConsumerThread();
 
  private:
   virtual bool threadInitialize();
@@ -44,14 +43,11 @@ class StereoConsumer : public ArgusSamples::Thread {
   Argus::Size2D<uint32_t> stream_size_;
 
   ArgusSamples::EGLDisplayHolder *display_;
-  Argus::IEGLOutputStream *m_leftStream;
-  Argus::IEGLOutputStream *m_rightStream;
-  CUeglStreamConnection m_cuStreamLeft;
-  CUeglStreamConnection m_cuStreamRight;
-  CUcontext m_cudaContext;
+  Argus::IEGLOutputStream *output_stream_;
+  CUeglStreamConnection cu_stream_;
+  CUcontext cuda_context_;
 
-  std::shared_ptr<vc_stereo_ros2::CameraPublisher> left_pub_;
-  std::shared_ptr<vc_stereo_ros2::CameraPublisher> right_pub_;
+  std::shared_ptr<vc_argus_ros2::CameraPublisher> camera_pub_;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

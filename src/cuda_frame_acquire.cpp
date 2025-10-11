@@ -3,7 +3,7 @@
 //
 // Copyright 2025 University of Washington
 
-#include "vc_stereo_ros2/cuda_frame_acquire.h"
+#include "vc_argus_ros2/cuda_frame_acquire.h"
 
 #include <Argus/Argus.h>
 #include <EGLStream/EGLStream.h>
@@ -16,15 +16,15 @@
 #include "nvidia_multimedia_api/Error.h"
 #include "sensor_msgs/fill_image.hpp"
 #include "sensor_msgs/msg/image.hpp"
-#include "vc_stereo_ros2/convert.h"
+#include "vc_argus_ros2/convert.h"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 CudaFrameAcquire::CudaFrameAcquire(
     CUeglStreamConnection& connection, rclcpp::Logger logger,
     ArgusSamples::EGLDisplayHolder* display,
     Argus::IEGLOutputStream* egl_stream,
-    const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub,
+    const std::shared_ptr<vc_argus_ros2::CameraPublisher>& pub,
     const Argus::Size2D<uint32_t>& stream_size)
     : m_connection(connection),
       m_stream(NULL),
@@ -123,4 +123,4 @@ bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
   return true;
 }
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

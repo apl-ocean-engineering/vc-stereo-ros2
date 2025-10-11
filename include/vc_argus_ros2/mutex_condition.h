@@ -7,7 +7,7 @@
 #include <condition_variable>
 #include <mutex>
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 class MutexCondition {
  public:
@@ -24,4 +24,4 @@ class MutexCondition {
   std::condition_variable _cond;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

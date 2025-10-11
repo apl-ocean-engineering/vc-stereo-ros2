@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 3.10)
-project(vc_stereo_ros2
+project(vc_argus_ros2
         LANGUAGES CUDA CXX)
 
 set(CMAKE_CUDA_ARCHITECTURES "53")
@@ -76,28 +76,27 @@ target_link_libraries(
 #
 
 generate_parameter_library(
-  stereo_parameters    # cmake target name for the parameter library
+  argus_parameters    # cmake target name for the parameter library
   src/parameters.yaml  # path to input yaml file
 )
 
-add_library(stereo_driver_component SHARED
+add_library(argus_driver_component SHARED
     src/convert.cu
     src/cuda_frame_acquire.cpp
     src/gpio_trigger_thread.cpp
-    src/stereo_node.cpp
-    src/stereo_consumer_thread.cpp
+    src/argus_node.cpp
     src/consumer_thread.cpp
     src/v4l_device.cpp
 )
 
 target_include_directories(
-    stereo_driver_component
+    argus_driver_component
     PUBLIC
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
         "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
 )
 
-target_link_libraries(stereo_driver_component
+target_link_libraries(argus_driver_component
   PUBLIC
         camera_info_manager::camera_info_manager
         image_transport::image_transport
@@ -105,13 +104,13 @@ target_link_libraries(stereo_driver_component
         rclcpp::rclcpp
         rclcpp_components::component
         nvidia_multimedia_api
-        stereo_parameters
+        argus_parameters
 )
 
 rclcpp_components_register_node(
-    stereo_driver_component
-    PLUGIN "vc_stereo_ros2::SyncedStereoNode"
-    EXECUTABLE stereo_node
+    argus_driver_component
+    PLUGIN "vc_argus_ros2::ArgusCameraNode"
+    EXECUTABLE argus_node
 )
 
 # == Install ==
@@ -122,11 +121,11 @@ install(
   DESTINATION include
 )
 
-ament_export_targets(export_stereo_driver_component nvidia_multimedia_api stereo_parameters)
-ament_export_dependencies(stereo_parameters nvidia_multimedia_api)
+ament_export_targets(export_argus_driver_component nvidia_multimedia_api argus_parameters)
+ament_export_dependencies(argus_parameters nvidia_multimedia_api)
 
-install(TARGETS stereo_parameters
-        EXPORT stereo_parameters
+install(TARGETS argus_parameters
+        EXPORT argus_parameters
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
@@ -139,8 +138,8 @@ install(TARGETS nvidia_multimedia_api
         RUNTIME DESTINATION bin
 )
 
-install(TARGETS stereo_driver_component
-        EXPORT export_stereo_driver_component
+install(TARGETS argus_driver_component
+        EXPORT export_argus_driver_component
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin

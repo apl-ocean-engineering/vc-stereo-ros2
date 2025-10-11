@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>vc_stereo_ros2</name>
+  <name>vc_argus_ros2</name>
   <version>2.0.0</version>
 
   <description>ROS2 stereo camera software synchronization through libargus on Nvidia Jetson-powered systems</description>

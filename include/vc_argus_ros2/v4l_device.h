@@ -8,7 +8,7 @@
 
 #include <string>
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 enum class TriggerType {
   Internal,  // Internally trigger, free-running
@@ -20,7 +20,7 @@ enum class TriggerType {
 class V4LDevice {
  public:
   V4LDevice() = delete;
-  V4LDevice(const V4LDevice &) = delete;
+  V4LDevice(const V4LDevice &) = default;
   explicit V4LDevice(const std::string &devnode);
 
   ~V4LDevice() { ; }
@@ -43,4 +43,4 @@ class V4LDevice {
   int trigger_mode_v4l2_id_;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

@@ -4,7 +4,7 @@
 
 // clang-format off
 // Must come first, do not let this be sorted with the other headers
-#include "vc_stereo_ros2/consumer_thread.h"
+#include "vc_argus_ros2/consumer_thread.h"
 // clang-format on
 
 #include <Argus/Argus.h>
@@ -15,9 +15,9 @@
 #include "nvidia_multimedia_api/CUDAHelper.h"
 #include "nvidia_multimedia_api/EGLGlobal.h"
 #include "nvidia_multimedia_api/Error.h"
-#include "vc_stereo_ros2/cuda_frame_acquire.h"
+#include "vc_argus_ros2/cuda_frame_acquire.h"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 using ArgusSamples::getCudaErrorString;
 
@@ -26,7 +26,7 @@ ConsumerThread::ConsumerThread(
     const Argus::Size2D<uint32_t> &stream_size,
     ArgusSamples::EGLDisplayHolder *holder,
     Argus::IEGLOutputStream *output_stream,
-    const std::shared_ptr<vc_stereo_ros2::CameraPublisher> &camera_pub)
+    const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub)
     : logger_(logger),
       clock_(clock),
       stream_size_(stream_size),
@@ -92,4 +92,4 @@ bool ConsumerThread::threadShutdown() {
   return true;
 }
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

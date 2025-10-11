@@ -16,9 +16,9 @@
 #include <sensor_msgs/msg/image.hpp>
 
 #include "nvidia_multimedia_api/EGLGlobal.h"
-#include "vc_stereo_ros2/camera_publisher.h"
+#include "vc_argus_ros2/camera_publisher.h"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 class CudaFrameAcquire {
  public:
@@ -26,7 +26,7 @@ class CudaFrameAcquire {
       CUeglStreamConnection& connection,  // NOLINT [runtime/references]
       rclcpp::Logger logger, ArgusSamples::EGLDisplayHolder* display,
       Argus::IEGLOutputStream* egl_stream,
-      const std::shared_ptr<vc_stereo_ros2::CameraPublisher>& pub,
+      const std::shared_ptr<vc_argus_ros2::CameraPublisher>& pub,
       const Argus::Size2D<uint32_t>& stream_size);
 
   ~CudaFrameAcquire();
@@ -39,7 +39,7 @@ class CudaFrameAcquire {
   CUeglFrame m_frame;
   CUstream m_stream;
 
-  std::shared_ptr<vc_stereo_ros2::CameraPublisher> pub_;
+  std::shared_ptr<vc_argus_ros2::CameraPublisher> pub_;
 
   int exposure_ns_;
   int analog_gain_;
@@ -48,4 +48,4 @@ class CudaFrameAcquire {
   uint8_t* oBuffer_;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

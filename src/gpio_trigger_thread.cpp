@@ -2,7 +2,7 @@
 //
 // Copyright 2025 University of Washington
 
-#include "vc_stereo_ros2/gpio_trigger_thread.h"
+#include "vc_argus_ros2/gpio_trigger_thread.h"
 
 #include <fcntl.h>
 #include <linux/gpio.h>
@@ -17,7 +17,7 @@
 #include <memory>
 #include <vector>
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 GpioTriggerThread::GpioTriggerThread(
     const std::shared_ptr<MutexCondition> &cond, int trigger_pulse_width_us)
@@ -158,4 +158,4 @@ bool GpioThreads::threadExecute() {
   return true;
 }
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2

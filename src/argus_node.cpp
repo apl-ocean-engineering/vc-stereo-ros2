@@ -18,14 +18,15 @@
 #include <string>
 #include <vector>
 
+#include "nvidia_multimedia_api/ArgusHelpers.h"
 #include "nvidia_multimedia_api/EGLGlobal.h"
-#include "vc_stereo_ros2/camera_publisher.h"
-#include "vc_stereo_ros2/consumer_thread.h"
-#include "vc_stereo_ros2/gpio_trigger_thread.h"
-#include "vc_stereo_ros2/stereo_parameters.hpp"
-#include "vc_stereo_ros2/v4l_device.h"
+#include "vc_argus_ros2/argus_parameters.hpp"
+#include "vc_argus_ros2/camera_publisher.h"
+#include "vc_argus_ros2/consumer_thread.h"
+#include "vc_argus_ros2/gpio_trigger_thread.h"
+#include "vc_argus_ros2/v4l_device.h"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 using Argus::CameraDevice;
 using Argus::CameraProvider;
@@ -46,32 +47,19 @@ using Argus::Range;
 using Argus::Request;
 using Argus::UniqueObj;
 
-class SyncedStereoNode : public rclcpp::Node {
+class ArgusCameraNode : public rclcpp::Node {
  public:
-  explicit SyncedStereoNode(const rclcpp::NodeOptions &options)
-      : Node("synced_stereo", options),
+  explicit ArgusCameraNode(const rclcpp::NodeOptions &options)
+      : Node("argus_camera", options),
         display_holder_(true),
         left_info_manager_(this, "left"),
         right_info_manager_(this, "right"),
-        camera_provider_(CameraProvider::create()),
-        video0_("/dev/video0"),
-        video1_("/dev/video1") {
-    // These are _not_ dynamically reconfigurable
-    declare_parameter("stream_width", 1440);
-    declare_parameter("stream_height", 1080);
-
-    uint32_t stream_width = this->get_parameter("stream_width").as_int();
-    uint32_t stream_height = this->get_parameter("stream_height").as_int();
-
-    stream_size_ = Argus::Size2D<uint32_t>(stream_width, stream_height);
-
-    param_listener_ =
-        std::make_shared<ParamListener>(get_node_parameters_interface());
-
+        camera_provider_(CameraProvider::create()) {
+    v4l_devices_ = {V4LDevice("/dev/video0"), V4LDevice("/dev/video1")};
     execute();
   }
 
-  virtual ~SyncedStereoNode() {
+  virtual ~ArgusCameraNode() {
     RCLCPP_INFO(get_logger(), "Starting destructor");
 
     auto icapturesession =
@@ -82,21 +70,18 @@ class SyncedStereoNode : public rclcpp::Node {
     }
 
     RCLCPP_INFO(get_logger(), "Captures complete, disconnecting producer.");
-    istream_left_->disconnect();
-    istream_right_->disconnect();
-
-    if (left_consumer_) {
-      if (!left_consumer_->shutdown()) {
-        RCLCPP_ERROR(get_logger(), "Unable to shut down left_consumer.");
-      }
-      left_consumer_.reset();
+    for (auto &stream : streams_) {
+      auto istream = Argus::interface_cast<IEGLOutputStream>(stream);
+      istream->disconnect();
     }
 
-    if (right_consumer_) {
-      if (!right_consumer_->shutdown()) {
-        RCLCPP_ERROR(get_logger(), "Unable to shut down right_consumer.");
+    for (auto consumer : consumers_) {
+      if (consumer) {
+        if (!consumer->shutdown()) {
+          RCLCPP_ERROR(get_logger(), "Unable to shut down consumer.");
+        }
+        consumer.reset();
       }
-      right_consumer_.reset();
     }
 
     if (camera_provider_) {
@@ -113,58 +98,10 @@ class SyncedStereoNode : public rclcpp::Node {
     gpio_threads_ = std::make_shared<GpioThreads>(std::vector<GpioConfig>(
         {{"/dev/gpiochip0", 49}, {"/dev/gpiochip0", 138}}));
 
+    param_listener_ =
+        std::make_shared<ParamListener>(get_node_parameters_interface());
+
     auto params = param_listener_->get_params();
-
-    const auto framerate = params.framerate;
-    RCLCPP_INFO_STREAM(get_logger(),
-                       "Setting frame rate to " << framerate << " fps");
-
-    if (params.trigger_mode == "external") {
-      RCLCPP_INFO(get_logger(), "Configuring cameras for _external_ trigger");
-
-      video0_.setTrigger(TriggerType::External);
-      video1_.setTrigger(TriggerType::External);
-
-      gpio_threads_->setPeriodMs(1000 / framerate);
-
-    } else {
-      RCLCPP_INFO(get_logger(), "Configuring cameras for _internal_ trigger");
-
-      video0_.setTrigger(TriggerType::Internal);
-      video1_.setTrigger(TriggerType::Internal);
-    }
-
-    left_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        "left",
-        image_transport::create_camera_publisher(this, "left/image_raw"),
-        this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
-            "left/imaging_metadata", 1));
-    right_camera_pub_ = std::make_shared<vc_stereo_ros2::CameraPublisher>(
-        "right",
-        image_transport::create_camera_publisher(this, "right/image_raw"),
-        this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
-            "right/imaging_metadata", 1));
-
-    // Set up camera info for both cameras
-    if (params.left_camera_info.size() > 0) {
-      if (!left_info_manager_.loadCameraInfo(params.left_camera_info)) {
-        RCLCPP_FATAL_STREAM(get_logger(),
-                            "Unable to load camera LEFT info from \""
-                                << params.left_camera_info << "\"");
-        return false;
-      }
-      left_camera_pub_->setCameraInfo(left_info_manager_.getCameraInfo());
-    }
-
-    if (params.right_camera_info.size() > 0) {
-      if (!right_info_manager_.loadCameraInfo(params.right_camera_info)) {
-        RCLCPP_FATAL_STREAM(get_logger(),
-                            "Unable to load RIGHT camera info from \""
-                                << params.right_camera_info << "\"");
-        return false;
-      }
-      right_camera_pub_->setCameraInfo(right_info_manager_.getCameraInfo());
-    }
 
     if (!display_holder_.initialize()) {
       RCLCPP_FATAL(get_logger(), "Unable to initialized EGL Display Holder");
@@ -183,15 +120,92 @@ class SyncedStereoNode : public rclcpp::Node {
     std::vector<CameraDevice *> camera_devices;
     iCameraProvider->getCameraDevices(&camera_devices);
     RCLCPP_INFO(get_logger(), "FOUND %lu CAMERAS", camera_devices.size());
-    if (camera_devices.size() < 2) {
-      RCLCPP_FATAL(get_logger(), "Must have at least 2 sensors available");
+    for (const auto &cam : camera_devices) {
+      ArgusSamples::ArgusHelpers::printCameraDeviceInfo(cam, "  ");
+    }
+
+    // !! These are the core configurables
+    std::vector<int> cameras_to_use = {0, 1};
+    std::vector<std::string> camera_names = {"left", "right"};
+
+    if (camera_devices.size() < cameras_to_use.size()) {
+      RCLCPP_FATAL(get_logger(), "Must have at least %lu sensors available",
+                   cameras_to_use.size());
+      return false;
+    } else if (cameras_to_use.size() == 0) {
+      RCLCPP_FATAL(get_logger(), "No cameras specified");
       return false;
     }
 
     std::vector<CameraDevice *> lrCameras;
-    lrCameras.push_back(camera_devices[0]);
-    lrCameras.push_back(camera_devices[1]);
+    for (auto i : cameras_to_use) {
+      if ((i >= 0) && (i < camera_devices.size()) && camera_devices[i]) {
+        lrCameras.push_back(camera_devices[i]);
+      }
+    }
 
+    if (lrCameras.size() != cameras_to_use.size()) {
+      RCLCPP_FATAL(get_logger(), "Couldn't find all of the cameras");
+      return false;
+    }
+
+    // TODO:  Allow selecting for mode
+    const uint32_t which_mode = 0;
+    auto sensor_mode = ArgusSamples::ArgusHelpers::getSensorMode(
+        lrCameras.front(), which_mode);
+    if (!sensor_mode) {
+      RCLCPP_FATAL(get_logger(), "Couldn't get sensor mode");
+      return false;
+    }
+    auto imode = Argus::interface_cast<Argus::ISensorMode>(sensor_mode);
+    if (!imode) {
+      RCLCPP_FATAL(get_logger(), "Unable to cast sensor mode");
+      return false;
+    }
+
+    stream_size_ = imode->getResolution();
+    RCLCPP_INFO(get_logger(), "Using resolution %d x %d", stream_size_[0],
+                stream_size_[1]);
+
+    //== Set up publishers
+
+    const auto framerate = params.framerate;
+    RCLCPP_INFO_STREAM(get_logger(),
+                       "Setting frame rate to " << framerate << " fps");
+    setTriggering(params.trigger_mode, params.framerate);
+
+    for (const auto &name : camera_names) {
+      camera_pubs_.push_back(std::make_shared<vc_argus_ros2::CameraPublisher>(
+          name,
+          image_transport::create_camera_publisher(this, name + "/image_raw"),
+          this->create_publisher<imaging_msgs::msg::ImagingMetadata>(
+              name + "/imaging_metadata", 1)));
+    }
+
+    // Set up camera info for both cameras
+    if (params.left_camera_info.size() > 0) {
+      if (!left_info_manager_.loadCameraInfo(params.left_camera_info)) {
+        RCLCPP_FATAL_STREAM(get_logger(),
+                            "Unable to load camera LEFT info from \""
+                                << params.left_camera_info << "\"");
+        return false;
+      }
+
+      // TODO this is one of the places where the system breaks down
+      camera_pubs_[0]->setCameraInfo(left_info_manager_.getCameraInfo());
+    }
+
+    if (params.right_camera_info.size() > 0) {
+      if (!right_info_manager_.loadCameraInfo(params.right_camera_info)) {
+        RCLCPP_FATAL_STREAM(get_logger(),
+                            "Unable to load RIGHT camera info from \""
+                                << params.right_camera_info << "\"");
+        return false;
+      }
+      camera_pubs_[1]->setCameraInfo(right_info_manager_.getCameraInfo());
+    }
+
+    //== Set up cameras
     capture_session_.reset(iCameraProvider->createCaptureSession(lrCameras));
     auto icapturesession =
         Argus::interface_cast<ICaptureSession>(capture_session_);
@@ -220,34 +234,29 @@ class SyncedStereoNode : public rclcpp::Node {
       iEGLStreamSettings->setMetadataEnable(true);
     }
 
-    iStreamSettings->setCameraDevice(lrCameras[0]);
-    stream_left_.reset(
-        icapturesession->createOutputStream(streamSettings.get()));
-    istream_left_ = Argus::interface_cast<IEGLOutputStream>(stream_left_);
-    if (!istream_left_) {
-      RCLCPP_FATAL(get_logger(), "Failed to create left stream");
-      return false;
-    }
-
-    iStreamSettings->setCameraDevice(lrCameras[1]);
-    stream_right_.reset(
-        icapturesession->createOutputStream(streamSettings.get()));
-    istream_right_ = Argus::interface_cast<IEGLOutputStream>(stream_right_);
-    if (!istream_right_) {
-      RCLCPP_FATAL(get_logger(), "Failed to create right stream");
-      return false;
+    // TODO This has bad smells...
+    streams_.resize(lrCameras.size());
+    for (int i = 0; i < lrCameras.size(); i++) {
+      iStreamSettings->setCameraDevice(lrCameras[i]);
+      auto stream = icapturesession->createOutputStream(streamSettings.get());
+      if (!stream) {
+        RCLCPP_FATAL(get_logger(),
+                     "Unable to create output stream for camera %d", i);
+        return false;
+      }
+      streams_[i].reset(stream);
     }
 
     request_.reset(icapturesession->createRequest());
-
     IRequest *irequest = Argus::interface_cast<IRequest>(request_);
     if (!irequest) {
       RCLCPP_FATAL(get_logger(), "Failed to create Request");
       return false;
     }
 
-    irequest->enableOutputStream(stream_left_.get());
-    irequest->enableOutputStream(stream_right_.get());
+    for (auto &stream : streams_) {
+      irequest->enableOutputStream(stream.get());
+    }
 
     {
       ISourceSettings *iSourceSettings =
@@ -259,13 +268,14 @@ class SyncedStereoNode : public rclcpp::Node {
       }
       iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
 
-      const Argus::Range<float> gain_range(1, 48);
-      iSourceSettings->setGainRange(gain_range);
+      // const Argus::Range<float> gain_range(1, 48);
+      iSourceSettings->setGainRange(imode->getAnalogGainRange());
 
       const uint64_t exp_ns = params.max_exposure_ms * 1e6;
       RCLCPP_INFO_STREAM(get_logger(),
                          "Setting max allowed exposure to " << exp_ns << " ns");
-      const Argus::Range<uint64_t> exposure_time_range(44000, exp_ns);
+      const Argus::Range<uint64_t> exposure_time_range(
+          imode->getExposureTimeRange().min(), exp_ns);
       iSourceSettings->setExposureTimeRange(exposure_time_range);
     }
 
@@ -322,21 +332,25 @@ class SyncedStereoNode : public rclcpp::Node {
           params.exposure_compensation);
     }
 
-    left_consumer_ = std::make_shared<ConsumerThread>(
+    consumers_.push_back(std::make_shared<ConsumerThread>(
         this->get_logger(), this->get_clock(), stream_size_, &display_holder_,
-        istream_left_, left_camera_pub_);
-    right_consumer_ = std::make_shared<ConsumerThread>(
+        Argus::interface_cast<IEGLOutputStream>(streams_[0]), camera_pubs_[0]));
+
+    consumers_.push_back(std::make_shared<ConsumerThread>(
         this->get_logger(), this->get_clock(), stream_size_, &display_holder_,
-        istream_right_, right_camera_pub_);
+        Argus::interface_cast<IEGLOutputStream>(streams_[1]), camera_pubs_[1]));
 
     gpio_threads_->initialize();
     gpio_threads_->waitRunning();
 
-    if (!left_consumer_->initialize() || !right_consumer_->initialize()) {
-      RCLCPP_FATAL(get_logger(), "Unable to initialize consumers");
-    }
-    if (!left_consumer_->waitRunning() || !right_consumer_->waitRunning()) {
-      RCLCPP_FATAL(get_logger(), "Unable to start consumers");
+    for (auto consumer : consumers_) {
+      if (!consumer->initialize()) {
+        RCLCPP_FATAL(get_logger(), "Unable to initialize consumer");
+      }
+
+      if (!consumer->waitRunning()) {
+        RCLCPP_FATAL(get_logger(), "Unable to start consumers");
+      }
     }
 
     RCLCPP_INFO(get_logger(), "Starting repeat capture request_s.");
@@ -346,12 +360,12 @@ class SyncedStereoNode : public rclcpp::Node {
     }
 
     param_listener_->setUserCallback(std::bind(
-        &SyncedStereoNode::parametersCallback, this, std::placeholders::_1));
+        &ArgusCameraNode::parametersCallback, this, std::placeholders::_1));
 
     return true;
   }
 
-  void parametersCallback(const vc_stereo_ros2::Params &params) {
+  void parametersCallback(const vc_argus_ros2::Params &params) {
     // Pause streaming
     auto icapturesession =
         Argus::interface_cast<ICaptureSession>(capture_session_);
@@ -404,6 +418,25 @@ class SyncedStereoNode : public rclcpp::Node {
   }
 
  protected:
+  void setTriggering(const std::string &trigger_mode, int framerate) {
+    if (trigger_mode == "external") {
+      RCLCPP_INFO(get_logger(), "Configuring cameras for _external_ trigger");
+
+      for (auto &v4l_device : v4l_devices_) {
+        v4l_device.setTrigger(TriggerType::External);
+      }
+
+      gpio_threads_->setPeriodMs(1000 / framerate);
+
+    } else {
+      RCLCPP_INFO(get_logger(), "Configuring cameras for _internal_ trigger");
+
+      for (auto &v4l_device : v4l_devices_) {
+        v4l_device.setTrigger(TriggerType::Internal);
+      }
+    }
+  }
+
   Argus::Size2D<uint32_t> stream_size_;
 
   camera_info_manager::CameraInfoManager left_info_manager_,
@@ -414,23 +447,20 @@ class SyncedStereoNode : public rclcpp::Node {
 
   UniqueObj<CameraProvider> camera_provider_;
   UniqueObj<Request> request_;
-  // std::shared_ptr<StereoConsumer> stereo_consumer_;
-  std::shared_ptr<ConsumerThread> left_consumer_, right_consumer_;
 
-  UniqueObj<OutputStream> stream_left_, stream_right_;
-  IEGLOutputStream *istream_right_, *istream_left_;
+  std::vector<std::shared_ptr<ConsumerThread> > consumers_;
+  std::vector<UniqueObj<OutputStream> > streams_;
 
-  V4LDevice video0_, video1_;
+  std::vector<V4LDevice> v4l_devices_;
 
-  std::shared_ptr<vc_stereo_ros2::CameraPublisher> left_camera_pub_,
-      right_camera_pub_;
+  std::vector<std::shared_ptr<vc_argus_ros2::CameraPublisher> > camera_pubs_;
 
   std::shared_ptr<GpioThreads> gpio_threads_;
 
-  std::shared_ptr<vc_stereo_ros2::ParamListener> param_listener_;
+  std::shared_ptr<vc_argus_ros2::ParamListener> param_listener_;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2
 
 #include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE(vc_stereo_ros2::SyncedStereoNode)
+RCLCPP_COMPONENTS_REGISTER_NODE(vc_argus_ros2::ArgusCameraNode)

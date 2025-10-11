@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "nvidia_multimedia_api/Thread.h"
-#include "vc_stereo_ros2/mutex_condition.h"
+#include "vc_argus_ros2/mutex_condition.h"
 
-namespace vc_stereo_ros2 {
+namespace vc_argus_ros2 {
 
 struct GpioConfig {
   //  GpioConfig(const std::string &dev, int p) : device(dev), pin(p) {}
@@ -66,4 +66,4 @@ class GpioThreads : public ArgusSamples::Thread {
   std::shared_ptr<MutexCondition> cond_;
 };
 
-}  // namespace vc_stereo_ros2
+}  // namespace vc_argus_ros2
