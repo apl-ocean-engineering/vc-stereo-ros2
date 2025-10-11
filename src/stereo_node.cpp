@@ -20,8 +20,8 @@
 
 #include "nvidia_multimedia_api/EGLGlobal.h"
 #include "vc_stereo_ros2/camera_publisher.h"
+#include "vc_stereo_ros2/consumer_thread.h"
 #include "vc_stereo_ros2/gpio_trigger_thread.h"
-#include "vc_stereo_ros2/stereo_consumer.h"
 #include "vc_stereo_ros2/stereo_parameters.hpp"
 #include "vc_stereo_ros2/v4l_device.h"
 
@@ -56,7 +56,7 @@ class SyncedStereoNode : public rclcpp::Node {
         camera_provider_(CameraProvider::create()),
         video0_("/dev/video0"),
         video1_("/dev/video1") {
-    // These are _not_ runtime reconfigurable
+    // These are _not_ dynamically reconfigurable
     declare_parameter("stream_width", 1440);
     declare_parameter("stream_height", 1080);
 
@@ -85,11 +85,18 @@ class SyncedStereoNode : public rclcpp::Node {
     istream_left_->disconnect();
     istream_right_->disconnect();
 
-    if (stereo_consumer_) {
-      if (!stereo_consumer_->shutdown()) {
-        RCLCPP_ERROR(get_logger(), "Unable to shut down stereo_consumer.");
+    if (left_consumer_) {
+      if (!left_consumer_->shutdown()) {
+        RCLCPP_ERROR(get_logger(), "Unable to shut down left_consumer.");
       }
-      stereo_consumer_.reset();
+      left_consumer_.reset();
+    }
+
+    if (right_consumer_) {
+      if (!right_consumer_->shutdown()) {
+        RCLCPP_ERROR(get_logger(), "Unable to shut down right_consumer.");
+      }
+      right_consumer_.reset();
     }
 
     if (camera_provider_) {
@@ -102,9 +109,9 @@ class SyncedStereoNode : public rclcpp::Node {
   }
 
   bool execute() {
-    // This is known apriori at this point
+    // In this version of the code, this is known apriori for the Nano dev board
     gpio_threads_ = std::make_shared<GpioThreads>(std::vector<GpioConfig>(
-        {GpioConfig("/dev/gpiochip0", 49), GpioConfig("/dev/gpiochip0", 138)}));
+        {{"/dev/gpiochip0", 49}, {"/dev/gpiochip0", 138}}));
 
     auto params = param_listener_->get_params();
 
@@ -119,8 +126,6 @@ class SyncedStereoNode : public rclcpp::Node {
       video1_.setTrigger(TriggerType::External);
 
       gpio_threads_->setPeriodMs(1000 / framerate);
-
-      RCLCPP_INFO(get_logger(), " ... configured");
 
     } else {
       RCLCPP_INFO(get_logger(), "Configuring cameras for _internal_ trigger");
@@ -175,16 +180,17 @@ class SyncedStereoNode : public rclcpp::Node {
     RCLCPP_INFO(get_logger(), "Argus Version: %s",
                 iCameraProvider->getVersion().c_str());
 
-    iCameraProvider->getCameraDevices(&camera_devices_);
-    RCLCPP_INFO(get_logger(), "FOUND %lu CAMERAS", camera_devices_.size());
-    if (camera_devices_.size() < 2) {
+    std::vector<CameraDevice *> camera_devices;
+    iCameraProvider->getCameraDevices(&camera_devices);
+    RCLCPP_INFO(get_logger(), "FOUND %lu CAMERAS", camera_devices.size());
+    if (camera_devices.size() < 2) {
       RCLCPP_FATAL(get_logger(), "Must have at least 2 sensors available");
       return false;
     }
 
     std::vector<CameraDevice *> lrCameras;
-    lrCameras.push_back(camera_devices_[0]);
-    lrCameras.push_back(camera_devices_[1]);
+    lrCameras.push_back(camera_devices[0]);
+    lrCameras.push_back(camera_devices[1]);
 
     capture_session_.reset(iCameraProvider->createCaptureSession(lrCameras));
     auto icapturesession =
@@ -232,9 +238,9 @@ class SyncedStereoNode : public rclcpp::Node {
       return false;
     }
 
-    request.reset(icapturesession->createRequest());
+    request_.reset(icapturesession->createRequest());
 
-    IRequest *irequest = Argus::interface_cast<IRequest>(request);
+    IRequest *irequest = Argus::interface_cast<IRequest>(request_);
     if (!irequest) {
       RCLCPP_FATAL(get_logger(), "Failed to create Request");
       return false;
@@ -245,10 +251,10 @@ class SyncedStereoNode : public rclcpp::Node {
 
     {
       ISourceSettings *iSourceSettings =
-          Argus::interface_cast<ISourceSettings>(request);
+          Argus::interface_cast<ISourceSettings>(request_);
       if (!iSourceSettings) {
         RCLCPP_FATAL(get_logger(),
-                     "Failed to get source settings request interface");
+                     "Failed to get source settings request_ interface");
         return false;
       }
       iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
@@ -258,7 +264,7 @@ class SyncedStereoNode : public rclcpp::Node {
 
       const uint64_t exp_ns = params.max_exposure_ms * 1e6;
       RCLCPP_INFO_STREAM(get_logger(),
-                         "Setting max exposure to " << exp_ns << " ns");
+                         "Setting max allowed exposure to " << exp_ns << " ns");
       const Argus::Range<uint64_t> exposure_time_range(44000, exp_ns);
       iSourceSettings->setExposureTimeRange(exposure_time_range);
     }
@@ -271,7 +277,7 @@ class SyncedStereoNode : public rclcpp::Node {
       // <=
       // 1
       IDenoiseSettings *denoiseSettings =
-          Argus::interface_cast<IDenoiseSettings>(request);
+          Argus::interface_cast<IDenoiseSettings>(request_);
       denoiseSettings->setDenoiseMode(Argus::DENOISE_MODE_OFF);
     }
 
@@ -282,14 +288,14 @@ class SyncedStereoNode : public rclcpp::Node {
       // EDGE_ENHANCE_MODE_HIGH_QUALITY also ->setEdgeEnhanceStrength(x) for 0
       // <= x <= 1
       IEdgeEnhanceSettings *edgeEnhanceSettings =
-          Argus::interface_cast<IEdgeEnhanceSettings>(request);
+          Argus::interface_cast<IEdgeEnhanceSettings>(request_);
       edgeEnhanceSettings->setEdgeEnhanceMode(Argus::EDGE_ENHANCE_MODE_OFF);
     }
 
     {
       // Set auto-* settings
       // Intentionally include most of the settings, just so we know they're
-      // availables even if we're using the default
+      // available even if we're using the default
       IAutoControlSettings *iAutoControlSettings =
           Argus::interface_cast<IAutoControlSettings>(
               irequest->getAutoControlSettings());
@@ -316,52 +322,42 @@ class SyncedStereoNode : public rclcpp::Node {
           params.exposure_compensation);
     }
 
-    stereo_consumer_ = std::make_shared<StereoConsumer>(
+    left_consumer_ = std::make_shared<ConsumerThread>(
         this->get_logger(), this->get_clock(), stream_size_, &display_holder_,
-        istream_left_, istream_right_, left_camera_pub_, right_camera_pub_);
+        istream_left_, left_camera_pub_);
+    right_consumer_ = std::make_shared<ConsumerThread>(
+        this->get_logger(), this->get_clock(), stream_size_, &display_holder_,
+        istream_right_, right_camera_pub_);
 
     gpio_threads_->initialize();
     gpio_threads_->waitRunning();
 
-    if (!stereo_consumer_->initialize()) {
-      RCLCPP_FATAL(get_logger(), "Unable to start stereo_consumer");
+    if (!left_consumer_->initialize() || !right_consumer_->initialize()) {
+      RCLCPP_FATAL(get_logger(), "Unable to initialize consumers");
     }
-    if (!stereo_consumer_->waitRunning()) {
-      RCLCPP_FATAL(get_logger(), "Unable to start stereo_consumer");
+    if (!left_consumer_->waitRunning() || !right_consumer_->waitRunning()) {
+      RCLCPP_FATAL(get_logger(), "Unable to start consumers");
     }
 
-    RCLCPP_INFO(get_logger(), "Starting repeat capture requests.");
-    if (icapturesession->repeat(request.get()) != Argus::STATUS_OK) {
+    RCLCPP_INFO(get_logger(), "Starting repeat capture request_s.");
+    if (icapturesession->repeat(request_.get()) != Argus::STATUS_OK) {
       RCLCPP_FATAL(get_logger(),
-                   "Failed to start repeat capture request for preview");
+                   "Failed to start repeat capture request_ for preview");
     }
 
-    // param_listener_ is also setting up a callback
-    // are they conflicting?  why can't I get a callback from
-    // it when there's a paramater change?
-    callback_handle_ = this->add_on_set_parameters_callback(std::bind(
+    param_listener_->setUserCallback(std::bind(
         &SyncedStereoNode::parametersCallback, this, std::placeholders::_1));
 
     return true;
   }
 
-  rcl_interfaces::msg::SetParametersResult parametersCallback(
-      const std::vector<rclcpp::Parameter> &parameters) {
-    rcl_interfaces::msg::SetParametersResult result;
-    result.successful = true;
-    result.reason = "success";
-
-    param_listener_->update(parameters);
-    auto params = param_listener_->get_params();
-
+  void parametersCallback(const vc_stereo_ros2::Params &params) {
     // Pause streaming
-
     auto icapturesession =
         Argus::interface_cast<ICaptureSession>(capture_session_);
     if (!icapturesession) {
-      result.successful = false;
-      result.reason = "Could not get ICaptureSession";
-      return result;
+      RCLCPP_WARN(get_logger(), "Unable to get capturesession");
+      return;
     }
 
     icapturesession->stopRepeat();
@@ -371,21 +367,18 @@ class SyncedStereoNode : public rclcpp::Node {
 
     {
       ISourceSettings *iSourceSettings =
-          Argus::interface_cast<ISourceSettings>(request);
+          Argus::interface_cast<ISourceSettings>(request_);
       if (iSourceSettings) {
         const uint64_t exp_ns = params.max_exposure_ms * 1e6;
         RCLCPP_INFO_STREAM(get_logger(),
                            "Setting max exposure to " << exp_ns << " ns");
         const Argus::Range<uint64_t> exposure_time_range(44000, exp_ns);
         iSourceSettings->setExposureTimeRange(exposure_time_range);
-      } else {
-        result.successful = false;
-        result.reason = "Failed to get source settings request interface";
       }
     }
 
     {
-      IRequest *irequest = Argus::interface_cast<IRequest>(request);
+      IRequest *irequest = Argus::interface_cast<IRequest>(request_);
       if (irequest) {
         // Set auto-* settings
         // Intentionally include most of the settings, just so we know they're
@@ -399,23 +392,15 @@ class SyncedStereoNode : public rclcpp::Node {
           iAutoControlSettings->setColorSaturationBias(params.saturation);
           iAutoControlSettings->setExposureCompensation(
               params.exposure_compensation);
-        } else {
-          result.successful = false;
-          result.reason = "Failed to get IAutoControlSettings";
         }
-      } else {
-        result.successful = false;
-        result.reason = "Failed to get IRequest";
       }
     }
 
     // Restart streaming in all cases
-    if (icapturesession->repeat(request.get()) != Argus::STATUS_OK) {
+    if (icapturesession->repeat(request_.get()) != Argus::STATUS_OK) {
       RCLCPP_ERROR(get_logger(),
-                   "Failed to start repeat capture request for preview");
+                   "Failed to start repeat capture request_ for preview");
     }
-
-    return result;
   }
 
  protected:
@@ -426,11 +411,11 @@ class SyncedStereoNode : public rclcpp::Node {
 
   ArgusSamples::EGLDisplayHolder display_holder_;
   UniqueObj<CaptureSession> capture_session_;
-  std::vector<CameraDevice *> camera_devices_;
 
   UniqueObj<CameraProvider> camera_provider_;
-  UniqueObj<Request> request;
-  std::shared_ptr<StereoConsumer> stereo_consumer_;
+  UniqueObj<Request> request_;
+  // std::shared_ptr<StereoConsumer> stereo_consumer_;
+  std::shared_ptr<ConsumerThread> left_consumer_, right_consumer_;
 
   UniqueObj<OutputStream> stream_left_, stream_right_;
   IEGLOutputStream *istream_right_, *istream_left_;
@@ -442,9 +427,7 @@ class SyncedStereoNode : public rclcpp::Node {
 
   std::shared_ptr<GpioThreads> gpio_threads_;
 
-  OnSetParametersCallbackHandle::SharedPtr callback_handle_;
   std::shared_ptr<vc_stereo_ros2::ParamListener> param_listener_;
-  vc_stereo_ros2::Params params_;
 };
 
 }  // namespace vc_stereo_ros2

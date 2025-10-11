@@ -4,15 +4,8 @@
 
 #pragma once
 
-#include <fcntl.h>
 #include <linux/gpio.h>
-#include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/timerfd.h>
-#include <sys/types.h>
-#include <unistd.h>
 
-#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -23,7 +16,7 @@
 namespace vc_stereo_ros2 {
 
 struct GpioConfig {
-  GpioConfig(const std::string &dev, int p) : device(dev), pin(p) {}
+  //  GpioConfig(const std::string &dev, int p) : device(dev), pin(p) {}
 
   std::string device;
   int pin;
@@ -31,10 +24,11 @@ struct GpioConfig {
 
 class GpioTriggerThread : public ArgusSamples::Thread {
  public:
-  explicit GpioTriggerThread(const std::shared_ptr<MutexCondition> &cond);
-  ~GpioTriggerThread();
+  explicit GpioTriggerThread(const std::shared_ptr<MutexCondition> &cond,
+                             int trigger_pulse_width_us = 2000);
+  ~GpioTriggerThread() { ; }
 
-  bool configure(const GpioConfig &config);
+  bool register_gpio(const GpioConfig &config);
 
  private:
   bool threadInitialize() override { return true; }
@@ -45,6 +39,8 @@ class GpioTriggerThread : public ArgusSamples::Thread {
 
   struct gpiohandle_request handle_;
   std::shared_ptr<MutexCondition> cond_;
+
+  int trigger_pulse_width_us_;
 };
 
 class GpioThreads : public ArgusSamples::Thread {

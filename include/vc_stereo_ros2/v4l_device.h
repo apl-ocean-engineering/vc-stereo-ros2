@@ -23,11 +23,11 @@ class V4LDevice {
   V4LDevice(const V4LDevice &) = delete;
   explicit V4LDevice(const std::string &devnode);
 
-  ~V4LDevice() {}
+  ~V4LDevice() { ; }
 
-  /// Query the list of ioctl ids to cache the ids we use (trigger_mode, etc)
+  /// Set the trigger type
   ///
-  /// \return True if able to initialize all control ID, false otherwise
+  /// \return True if successful
   bool setTrigger(const TriggerType trigger_type);
 
  protected:
@@ -39,6 +39,7 @@ class V4LDevice {
  private:
   std::string device_;
 
+  /// Cached IDs to ioctls of interest
   int trigger_mode_v4l2_id_;
 };
 

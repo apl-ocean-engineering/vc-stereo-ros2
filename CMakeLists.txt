@@ -86,6 +86,7 @@ add_library(stereo_driver_component SHARED
     src/gpio_trigger_thread.cpp
     src/stereo_node.cpp
     src/stereo_consumer.cpp
+    src/consumer_thread.cpp
     src/v4l_device.cpp
 )
 

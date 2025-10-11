@@ -4,8 +4,15 @@
 
 #include "vc_stereo_ros2/gpio_trigger_thread.h"
 
-#include <string.h>
+#include <fcntl.h>
+#include <linux/gpio.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/timerfd.h>
+#include <sys/types.h>
+#include <unistd.h>
 
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -13,12 +20,10 @@
 namespace vc_stereo_ros2 {
 
 GpioTriggerThread::GpioTriggerThread(
-    const std::shared_ptr<MutexCondition> &cond)
-    : cond_(cond) {}
+    const std::shared_ptr<MutexCondition> &cond, int trigger_pulse_width_us)
+    : cond_(cond), trigger_pulse_width_us_(trigger_pulse_width_us) {}
 
-GpioTriggerThread::~GpioTriggerThread() {}
-
-bool GpioTriggerThread::configure(const GpioConfig &config) {
+bool GpioTriggerThread::register_gpio(const GpioConfig &config) {
   struct stat st;
 
   if (-1 == stat(config.device.c_str(), &st)) {
@@ -56,12 +61,11 @@ bool GpioTriggerThread::configure(const GpioConfig &config) {
 }
 
 bool GpioTriggerThread::threadExecute() {
-  const int TRIGGER_PULSE_WDITH_US = 2000;
-
   cond_->wait();
   setGpio(true);
-  usleep(TRIGGER_PULSE_WDITH_US);
+  usleep(trigger_pulse_width_us_);
   setGpio(false);
+
   return true;
 }
 
@@ -114,7 +118,7 @@ bool GpioThreads::threadInitialize() {
   for (const auto gpio_device : gpio_configs_) {
     auto gpio_trig = std::make_shared<GpioTriggerThread>(cond_);
 
-    if (!gpio_trig->configure(gpio_device)) {
+    if (!gpio_trig->register_gpio(gpio_device)) {
       std::cerr << "Unable to configure GPIO for " << gpio_device.device
                 << " line " << gpio_device.pin << std::endl;
       continue;
