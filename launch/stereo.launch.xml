@@ -1,3 +1,4 @@
+<!-- Sample minimal launchfile -->
 <launch>
 
     <!-- Method used for triggering the cameras.

@@ -1,3 +1,5 @@
+# Sample calibration, sufficient for testing the driver
+#
 image_width: 1440
 image_height: 1080
 camera_name: left
