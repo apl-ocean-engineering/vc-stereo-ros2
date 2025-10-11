@@ -4,7 +4,7 @@
 
 // clang-format off
 // Must come first, do not let this be sorted with the other headers
-#include "vc_stereo_ros2/stereo_consumer.h"
+#include "vc_stereo_ros2/stereo_consumer_thread.h"
 // clang-format on
 
 #include <Argus/Argus.h>
