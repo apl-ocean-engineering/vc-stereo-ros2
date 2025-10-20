@@ -117,6 +117,7 @@ bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
   meta_msg.header.stamp = output.header.stamp;
   meta_msg.exposure_us = exposure_ns_ / 1e3;
   meta_msg.gain = analog_gain_;
+  meta_msg.digital_gain = isp_gain_;
 
   pub_->publish(output, meta_msg);
 

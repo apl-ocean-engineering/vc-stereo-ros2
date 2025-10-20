@@ -11,7 +11,6 @@
 
 #include <camera_info_manager/camera_info_manager.hpp>
 #include <image_transport/camera_publisher.hpp>
-#include <imaging_msgs/msg/imaging_metadata.hpp>
 #include <memory>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -262,13 +261,10 @@ class ArgusCameraNode : public rclcpp::Node {
       ISourceSettings *iSourceSettings =
           Argus::interface_cast<ISourceSettings>(request_);
       if (!iSourceSettings) {
-        RCLCPP_FATAL(get_logger(),
-                     "Failed to get source settings request_ interface");
+        RCLCPP_FATAL(get_logger(), "Failed to get source settings interface");
         return false;
       }
       iSourceSettings->setFrameDurationRange(Range<uint64_t>(1e9 / framerate));
-
-      // const Argus::Range<float> gain_range(1, 48);
       iSourceSettings->setGainRange(imode->getAnalogGainRange());
 
       const uint64_t exp_ns = params.max_exposure_ms * 1e6;
@@ -310,8 +306,16 @@ class ArgusCameraNode : public rclcpp::Node {
           Argus::interface_cast<IAutoControlSettings>(
               irequest->getAutoControlSettings());
 
-      const Argus::Range<float> ISP_DIGITAL_GAIN_RANGE(1, 1);
-      iAutoControlSettings->setIspDigitalGainRange(ISP_DIGITAL_GAIN_RANGE);
+      // Read the capabilities from the first camera
+      auto iCameraProperties =
+          Argus::interface_cast<Argus::ICameraProperties>(lrCameras.front());
+
+      // Use full ISP digital gain
+      //  to disable digital gain, use:
+      // iAutoControlSettings->setIspDigitalGainRange(Argus::Range<float>(1,
+      // 1));
+      iAutoControlSettings->setIspDigitalGainRange(
+          iCameraProperties->getIspDigitalGainRange());
 
       iAutoControlSettings->setAeAntibandingMode(
           Argus::AE_ANTIBANDING_MODE_OFF);
