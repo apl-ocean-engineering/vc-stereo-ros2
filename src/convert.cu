@@ -24,8 +24,8 @@ __global__ void convert_kernel(CUsurfObject surface1, CUsurfObject surface2,
     for (int row = y; row < height; row += ny) {
       uchar1 Ydata, Cbdata, Crdata;
       surf2Dread(&Ydata, surface1, col, row);
-      surf2Dread(&Cbdata, surface2, ((int)col / 2) * 2 + 1, (int)(row / 2));
-      surf2Dread(&Crdata, surface2, ((int)col / 2) * 2 + 0, (int)(row / 2));
+      surf2Dread(&Cbdata, surface2, ((int)col / 2) * 2 + 0, (int)(row / 2));
+      surf2Dread(&Crdata, surface2, ((int)col / 2) * 2 + 1, (int)(row / 2));
 
       const float Rint = (Ydata.x + 1.402f * (Crdata.x - 128));
       uint8_t Rval =
@@ -40,9 +40,10 @@ __global__ void convert_kernel(CUsurfObject surface1, CUsurfObject surface2,
       uint8_t Bval =
           clamp(round(pow(Bint / 255.0, inv_gamma) * 255.0f), 0.0f, 255.0f);
 
-      out[3 * (row * width + col) + 0] = Rval;
+      // Output in BGR order
+      out[3 * (row * width + col) + 0] = Bval;
       out[3 * (row * width + col) + 1] = Gval;
-      out[3 * (row * width + col) + 2] = Bval;
+      out[3 * (row * width + col) + 2] = Rval;
     }
   }
 }
