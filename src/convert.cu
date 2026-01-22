@@ -12,11 +12,13 @@ __device__ inline uint8_t clamp(float val, float mn, float mx) {
 
 __global__ void convert_kernel(CUsurfObject surface1, CUsurfObject surface2,
                                unsigned int width, unsigned int height,
-                               uint8_t* out) {
+                               const float gamma, uint8_t* out) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int nx = blockDim.x * gridDim.x;
   int ny = blockDim.y * gridDim.y;
+
+  const float inv_gamma = 1.0f / gamma;
 
   for (int col = x; col < width; col += nx) {
     for (int row = y; row < height; row += ny) {
@@ -25,11 +27,18 @@ __global__ void convert_kernel(CUsurfObject surface1, CUsurfObject surface2,
       surf2Dread(&Cbdata, surface2, ((int)col / 2) * 2 + 1, (int)(row / 2));
       surf2Dread(&Crdata, surface2, ((int)col / 2) * 2 + 0, (int)(row / 2));
 
-      uint8_t Rval = clamp(Ydata.x + 1.402f * (Crdata.x - 128), 0.0f, 255.0f);
-      uint8_t Gval = clamp(
-          Ydata.x - 0.344136f * (Cbdata.x - 128) - 0.714136 * (Crdata.x - 128),
-          0.0f, 255.0f);
-      uint8_t Bval = clamp(Ydata.x + 1.772f * (Cbdata.x - 128), 0.0f, 255.0f);
+      const float Rint = (Ydata.x + 1.402f * (Crdata.x - 128));
+      uint8_t Rval =
+          clamp(round(pow(Rint / 255.0, inv_gamma) * 255.0f), 0.0f, 255.0f);
+
+      const float Gint =
+          Ydata.x - 0.344136f * (Cbdata.x - 128) - 0.714136 * (Crdata.x - 128);
+      uint8_t Gval =
+          clamp(round(pow(Gint / 255.0, inv_gamma) * 255.0f), 0.0f, 255.0f);
+
+      const float Bint = Ydata.x + 1.772f * (Cbdata.x - 128);
+      uint8_t Bval =
+          clamp(round(pow(Bint / 255.0, inv_gamma) * 255.0f), 0.0f, 255.0f);
 
       out[3 * (row * width + col) + 0] = Rval;
       out[3 * (row * width + col) + 1] = Gval;
@@ -40,7 +49,7 @@ __global__ void convert_kernel(CUsurfObject surface1, CUsurfObject surface2,
 
 float run_smem_atomics(CUsurfObject surface1, CUsurfObject surface2,
                        unsigned int width, unsigned int height,
-                       uint8_t* oBuffer) {
+                       const float gamma, uint8_t* oBuffer) {
   cudaError_t err = cudaSuccess;
   dim3 block(32, 4);
   dim3 grid(16, 16);
@@ -59,7 +68,8 @@ float run_smem_atomics(CUsurfObject surface1, CUsurfObject surface2,
   cudaEventCreate(&start);
   cudaEventRecord(start, 0);
 
-  convert_kernel<<<grid, block>>>(surface1, surface2, width, height, d_buffer);
+  convert_kernel<<<grid, block>>>(surface1, surface2, width, height, gamma,
+                                  d_buffer);
   err = cudaGetLastError();
   if (err != cudaSuccess) {
     fprintf(stderr, "Failed to launch kernel (%s)!\n", cudaGetErrorString(err));
@@ -93,7 +103,7 @@ float run_smem_atomics(CUsurfObject surface1, CUsurfObject surface2,
 }
 
 float convertSurfObject(CUsurfObject surface1, CUsurfObject surface2,
-                        unsigned int width, unsigned int height,
+                        unsigned int width, unsigned int height, float gamma,
                         uint8_t* oBuffer) {
-  return run_smem_atomics(surface1, surface2, width, height, oBuffer);
+  return run_smem_atomics(surface1, surface2, width, height, gamma, oBuffer);
 }

@@ -383,6 +383,10 @@ class ArgusCameraNode : public rclcpp::Node {
     // \todo{}
     //   Only set parameters if they've changed (?)
 
+    for (auto &consumer : consumers_) {
+      consumer->setGamma(params.gamma);
+    }
+
     {
       ISourceSettings *iSourceSettings =
           Argus::interface_cast<ISourceSettings>(request_);

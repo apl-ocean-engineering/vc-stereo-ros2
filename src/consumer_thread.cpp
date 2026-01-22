@@ -34,7 +34,8 @@ ConsumerThread::ConsumerThread(
       output_stream_(output_stream),
       cu_stream_(nullptr),
       cuda_context_(0),
-      camera_pub_(camera_pub) {}
+      camera_pub_(camera_pub),
+      gamma_(1.0) {}
 
 ConsumerThread::~ConsumerThread() {}
 
@@ -72,7 +73,7 @@ bool ConsumerThread::threadExecute() {
                                camera_pub_, stream_size_);
 
     const auto t = clock_->now();
-    PROPAGATE_ERROR(frame_acq.publish(t));
+    PROPAGATE_ERROR(frame_acq.publish(t, gamma_));
   }
 
   RCLCPP_INFO(logger_, "No more frames. Cleaning up.");

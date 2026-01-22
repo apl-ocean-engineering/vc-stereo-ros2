@@ -81,7 +81,7 @@ CudaFrameAcquire::~CudaFrameAcquire() {
   if (oBuffer_) delete[] oBuffer_;
 }
 
-bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
+bool CudaFrameAcquire::publish(const rclcpp::Time& now, double gamma) {
   CUDA_RESOURCE_DESC cudaResourceDesc;
   memset(&cudaResourceDesc, 0, sizeof(cudaResourceDesc));
   cudaResourceDesc.resType = CU_RESOURCE_TYPE_ARRAY;
@@ -103,7 +103,7 @@ bool CudaFrameAcquire::publish(const rclcpp::Time& now) {
   }
 
   float delta = convertSurfObject(cudaSurfObj1, cudaSurfObj2, m_frame.width,
-                                  m_frame.height, oBuffer_);
+                                  m_frame.height, gamma, oBuffer_);
   cuSurfObjectDestroy(cudaSurfObj1);
   cuSurfObjectDestroy(cudaSurfObj2);
 

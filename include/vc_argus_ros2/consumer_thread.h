@@ -33,6 +33,8 @@ class ConsumerThread : public ArgusSamples::Thread {
 
   ~ConsumerThread();
 
+  void setGamma(double g) { gamma_ = g; }
+
  private:
   virtual bool threadInitialize();
   virtual bool threadExecute();
@@ -46,6 +48,8 @@ class ConsumerThread : public ArgusSamples::Thread {
   Argus::IEGLOutputStream *output_stream_;
   CUeglStreamConnection cu_stream_;
   CUcontext cuda_context_;
+
+  double gamma_;
 
   std::shared_ptr<vc_argus_ros2::CameraPublisher> camera_pub_;
 };
