@@ -40,12 +40,12 @@ CudaFrameAcquire::CudaFrameAcquire(
   if (cuResult == CUDA_SUCCESS) {
     cuResult = cuGraphicsResourceGetMappedEglFrame(&m_frame, m_resource, 0, 0);
     if (cuResult != CUDA_SUCCESS) {
-      printf("Unable to get mapped frame (%s)",
-             ArgusSamples::getCudaErrorString(cuResult));
+      RCLCPP_WARN(logger, "Unable to get mapped frame (%s)",
+                  ArgusSamples::getCudaErrorString(cuResult));
     }
   } else {
-    printf("Unable to acquire frame (%s)",
-           ArgusSamples::getCudaErrorString(cuResult));
+    RCLCPP_WARN(logger, "Unable to acquire frame (%s)",
+                ArgusSamples::getCudaErrorString(cuResult));
   }
 
   Argus::Status status;

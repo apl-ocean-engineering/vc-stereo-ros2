@@ -15,8 +15,11 @@
 namespace vc_argus_ros2 {
 
 // Extends the idea of image_transport::CameraPublisher,
-// publishing an image, a cached camera_info, and imaging_metadata
-// with a single call
+// publishing an image, a camera_info, and imaging_metadata
+// with a single call.
+//
+// The camera_info is cached internally and does not
+// need to be provided with each call to publish()
 class CameraPublisher {
  public:
   CameraPublisher(

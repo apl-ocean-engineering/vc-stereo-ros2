@@ -328,7 +328,6 @@ class ArgusCameraNode : public rclcpp::Node {
       iAutoControlSettings->setAwbMode(Argus::AWB_MODE_AUTO);
       iAutoControlSettings->setAwbLock(params.awb_lock);
 
-      // Should use ColorSaturation instead?
       iAutoControlSettings->setColorSaturationEnable(true);
       iAutoControlSettings->setColorSaturationBias(params.saturation);
 
