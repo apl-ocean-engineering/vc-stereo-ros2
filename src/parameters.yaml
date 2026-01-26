@@ -50,3 +50,10 @@ vc_argus_ros2:
     description: "Exposure compensation in EV stops [-5.0 - 5.0]"
     validation:
       bounds<>: [-5,5]
+
+  gamma:
+    type: double
+    default_value: 1.0
+    description: "Gamma [0.0 - 3.0]"
+    validation:
+      bounds<>: [0, 3]

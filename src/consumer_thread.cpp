@@ -26,7 +26,8 @@ ConsumerThread::ConsumerThread(
     const Argus::Size2D<uint32_t> &stream_size,
     ArgusSamples::EGLDisplayHolder *holder,
     Argus::IEGLOutputStream *output_stream,
-    const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub)
+    const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub,
+    double gamma)
     : logger_(logger),
       clock_(clock),
       stream_size_(stream_size),
@@ -34,7 +35,8 @@ ConsumerThread::ConsumerThread(
       output_stream_(output_stream),
       cu_stream_(nullptr),
       cuda_context_(0),
-      camera_pub_(camera_pub) {}
+      camera_pub_(camera_pub),
+      gamma_(gamma) {}
 
 ConsumerThread::~ConsumerThread() {}
 
@@ -72,7 +74,7 @@ bool ConsumerThread::threadExecute() {
                                camera_pub_, stream_size_);
 
     const auto t = clock_->now();
-    PROPAGATE_ERROR(frame_acq.publish(t));
+    PROPAGATE_ERROR(frame_acq.publish(t, gamma_));
   }
 
   RCLCPP_INFO(logger_, "No more frames. Cleaning up.");

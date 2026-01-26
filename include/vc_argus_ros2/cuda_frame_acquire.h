@@ -31,7 +31,7 @@ class CudaFrameAcquire {
 
   ~CudaFrameAcquire();
 
-  bool publish(const rclcpp::Time& now);
+  bool publish(const rclcpp::Time& now, double gamma = 1.0);
 
  private:
   CUeglStreamConnection& m_connection;
