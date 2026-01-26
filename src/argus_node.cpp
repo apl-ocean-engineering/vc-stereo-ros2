@@ -347,7 +347,7 @@ class ArgusCameraNode : public rclcpp::Node {
     gpio_threads_->initialize();
     gpio_threads_->waitRunning();
 
-    for (auto consumer : consumers_) {
+    for (auto &consumer : consumers_) {
       if (!consumer->initialize()) {
         RCLCPP_FATAL(get_logger(), "Unable to initialize consumer");
       }
@@ -355,6 +355,9 @@ class ArgusCameraNode : public rclcpp::Node {
       if (!consumer->waitRunning()) {
         RCLCPP_FATAL(get_logger(), "Unable to start consumers");
       }
+
+      // Initialize gamma for each consumer
+      consumer->setGamma(params.gamma);
     }
 
     RCLCPP_INFO(get_logger(), "Starting repeat capture request_s.");
@@ -384,6 +387,8 @@ class ArgusCameraNode : public rclcpp::Node {
     //   Only set parameters if they've changed (?)
 
     for (auto &consumer : consumers_) {
+      RCLCPP_DEBUG_STREAM(get_logger(),
+                          "Setting gamma to " << params.gamma << " ns");
       consumer->setGamma(params.gamma);
     }
 
@@ -392,8 +397,8 @@ class ArgusCameraNode : public rclcpp::Node {
           Argus::interface_cast<ISourceSettings>(request_);
       if (iSourceSettings) {
         const uint64_t exp_ns = params.max_exposure_ms * 1e6;
-        RCLCPP_INFO_STREAM(get_logger(),
-                           "Setting max exposure to " << exp_ns << " ns");
+        RCLCPP_DEBUG_STREAM(get_logger(),
+                            "Setting max exposure to " << exp_ns << " ns");
         const Argus::Range<uint64_t> exposure_time_range(44000, exp_ns);
         iSourceSettings->setExposureTimeRange(exposure_time_range);
       }
