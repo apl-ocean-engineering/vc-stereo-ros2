@@ -338,11 +338,13 @@ class ArgusCameraNode : public rclcpp::Node {
 
     consumers_.push_back(std::make_shared<ConsumerThread>(
         this->get_logger(), this->get_clock(), stream_size_, &display_holder_,
-        Argus::interface_cast<IEGLOutputStream>(streams_[0]), camera_pubs_[0]));
+        Argus::interface_cast<IEGLOutputStream>(streams_[0]), camera_pubs_[0],
+        params.gamma));
 
     consumers_.push_back(std::make_shared<ConsumerThread>(
         this->get_logger(), this->get_clock(), stream_size_, &display_holder_,
-        Argus::interface_cast<IEGLOutputStream>(streams_[1]), camera_pubs_[1]));
+        Argus::interface_cast<IEGLOutputStream>(streams_[1]), camera_pubs_[1],
+        params.gamma));
 
     gpio_threads_->initialize();
     gpio_threads_->waitRunning();
@@ -355,9 +357,6 @@ class ArgusCameraNode : public rclcpp::Node {
       if (!consumer->waitRunning()) {
         RCLCPP_FATAL(get_logger(), "Unable to start consumers");
       }
-
-      // Initialize gamma for each consumer
-      consumer->setGamma(params.gamma);
     }
 
     RCLCPP_INFO(get_logger(), "Starting repeat capture request_s.");

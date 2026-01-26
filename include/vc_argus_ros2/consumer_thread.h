@@ -29,7 +29,8 @@ class ConsumerThread : public ArgusSamples::Thread {
       const Argus::Size2D<uint32_t> &stream_size,
       ArgusSamples::EGLDisplayHolder *holder,
       Argus::IEGLOutputStream *output_stream,
-      const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub);
+      const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub,
+      double gamma = 1.0);
 
   ~ConsumerThread();
 

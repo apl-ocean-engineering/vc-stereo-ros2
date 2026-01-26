@@ -26,7 +26,8 @@ ConsumerThread::ConsumerThread(
     const Argus::Size2D<uint32_t> &stream_size,
     ArgusSamples::EGLDisplayHolder *holder,
     Argus::IEGLOutputStream *output_stream,
-    const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub)
+    const std::shared_ptr<vc_argus_ros2::CameraPublisher> &camera_pub,
+    double gamma)
     : logger_(logger),
       clock_(clock),
       stream_size_(stream_size),
@@ -35,7 +36,7 @@ ConsumerThread::ConsumerThread(
       cu_stream_(nullptr),
       cuda_context_(0),
       camera_pub_(camera_pub),
-      gamma_(1.0) {}
+      gamma_(gamma) {}
 
 ConsumerThread::~ConsumerThread() {}
 
