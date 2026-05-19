@@ -2,9 +2,14 @@
 
 **Status:**  This software is under active development.  Please submit an [Issue](https://github.com/apl-ocean-engineering/vc-stereo-ros2/issues) with any questions.
 
+For our systems we have largely transitioned to [odometry_nano_camera](https://gitlab.com/apl-ocean-engineering/nano-odometry-mapping/odometry_nano_camera) as our preferred ROS2 camera driver.   It interfaces with the same driver but wraps in internal GStreamer pipeline using the `nvarguscamerasrc` plugin.  This lets us leverage GStreamer-based acceleration *before* the image data is handled by ROS2.
+
+---
+
+
 This is a minimum-working-example ROS2 driver for two cameras published via `libargus`, the Image Signal Processor (ISP) SW/HW provided by the **Jetpack** OS for Jetson devices.  It uses EGL/CUDA to perform YUV -> RGB mapping.
 
-We are developing on a Jetson Orin Nano development kit running [Jetpack 6.2](https://developer.nvidia.com/embedded/jetpack) with two IMX296-based [Vision Components](https://www.vision-components.com/en/) camera modules.   For our testing, we run ROS2 "humble" built from source with our [custom installer](https://gitlab.com/rsa-perception-sensor/trisect_environment/-/tree/jetpack-6.1?ref_type=heads).  However as Jetpack 6.2 is based on Ubuntu 22.04, it should work with the standard "humble" packages from the ROS archive.
+We are developing on a Jetson Orin Nano development kit running [Jetpack 6.2](https://developer.nvidia.com/embedded/jetpack) with two IMX296-based [Vision Components](https://www.vision-components.com/en/) camera modules.   For our testing, we run ROS2 "jazzy" built from source with our [custom installer](https://gitlab.com/rsa-perception-sensor/trisect_environment/-/tree/jetpack-6.1?ref_type=heads).  
 
 This software is mostly generic, but contains a few customizations specific to our case:
 
